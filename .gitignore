@@ -1,27 +1,25 @@
-# First, ignore everything
+# First ignore everything
 *
 *~
 
-# Then explicitly allow these directories and files
+# Then un-ignore specific directories and their contents
 !.gitignore
 !init.el
 !early-init.el
+!modules/
 !modules/**
-!my-functions.el
-!my-keybindings.el
-!my-modal.el
-!my-modeline.el
-!my-operators.el
-!my-packages.el
-!weetjes.txt
+!modules/configs/
+!modules/configs/setup/**
+!modules/configs/utilities/**
+!modules/configs/downloaded_packages/**
+!modules/my-*.el
 
-# But still ignore these specific patterns
+# Still ignore these patterns even in tracked directories
 *.el~
 *#*
 .#*
 *#
 transient/
 history.el
-modules/BAK/
-eln-cache/
-elpaca/
+weetjes.txt
+**/BAK/
