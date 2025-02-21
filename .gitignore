@@ -4,6 +4,7 @@
 
 # Then un-ignore specific directories and their contents
 !.gitignore
+!update_emacs_config.sh
 !init.el
 !early-init.el
 !modules/
