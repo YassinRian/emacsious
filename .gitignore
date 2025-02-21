@@ -1,0 +1,27 @@
+# First, ignore everything
+*
+*~
+
+# Then explicitly allow these directories and files
+!.gitignore
+!init.el
+!early-init.el
+!modules/**
+!my-functions.el
+!my-keybindings.el
+!my-modal.el
+!my-modeline.el
+!my-operators.el
+!my-packages.el
+!weetjes.txt
+
+# But still ignore these specific patterns
+*.el~
+*#*
+.#*
+*#
+transient/
+history.el
+modules/BAK/
+eln-cache/
+elpaca/

@@ -1,0 +1,11 @@
+# Start daemon
+systemctl --user start emacs
+
+# Stop daemon
+systemctl --user stop emacs
+
+# Restart daemon
+systemctl --user restart emacs
+
+# Check status
+systemctl --user status emacs
