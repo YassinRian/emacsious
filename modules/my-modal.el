@@ -5,6 +5,9 @@
 
 ;;; Code:
 
+
+(require 'custom-functions)
+
 ;; Prevent warnings about undefined variables/functions
 (defvar my-modal-mode)
 
@@ -182,6 +185,7 @@
 
 (defhydra hydra-change-mode (:color blue :body-pre (insert "f") :idle 1.0 :timeout 0.5)
   ("d" (progn (delete-char -1)
+  	      (my-corfu-quit)
 	      (my-modal-enter-normal-mode))))
    
 

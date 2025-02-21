@@ -94,6 +94,9 @@
 (elpaca poetry)
 (elpaca projectile)
 
+;; Viper
+(autoload 'viper-ex "viper")
+
 ;; =====================  // UI Enhancements =================================
 
 

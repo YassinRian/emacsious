@@ -111,6 +111,26 @@
 
 ;; =============================================================== Dired Mode **
 
+;; =============================================================== Other keybindings **
+
+;;viper
+(define-key my-modal-normal-map (kbd ":") #'viper-ex)
+
+;; vertico
+(define-key vertico-map (kbd "f") #'hydra-vertico-mode/body)  
+
+(defun my-activate-vertico-nav ()
+  "Activate transient navigation map for vertico."
+  (interactive)
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "o") #'next-line)
+    (define-key map (kbd "i") #'previous-line)
+    (set-transient-map map t)))
+
+(defhydra hydra-vertico-mode (:color blue :body-pre (insert "f") :idle 1.0 :timeout 0.5)
+  ("d" (progn (delete-char -1)
+	      (my-activate-vertico-nav))))
+
 
 
 (provide 'my-keybindings)
