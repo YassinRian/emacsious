@@ -223,28 +223,42 @@
       
 ;;========================================= Alacritty ================================
            
-(defun get-current-theme-bg ()
-  "Get the current theme's background color."
-  (face-background 'default))
+(defun get-current-theme-colors ()
+  "Get the current theme's background and foreground colors."
+  (list (face-background 'default)
+        (face-foreground 'default)))
 
 (defun update-alacritty-colors ()
   "Update Alacritty colors based on current Emacs theme."
   (interactive)
-  (let* ((default-bg "#1C2F45")  ; Define your default background color
-         (theme-bg (get-current-theme-bg))
+  (let* ((default-bg "#1C2F45")    ; Define your default background color
+         (default-fg "#FFFFFF")     ; Define your default foreground color
+         (theme-colors (get-current-theme-colors))
+         (theme-bg (nth 0 theme-colors))
+         (theme-fg (nth 1 theme-colors))
          (bg-color (if (or (null theme-bg)
-                           (string-match "nspecified-bg" theme-bg))
-                       default-bg
-                     theme-bg))
+                          (string-match "nspecified-bg" theme-bg))
+                      default-bg
+                    theme-bg))
+         (fg-color (if (or (null theme-fg)
+                          (string-match "nspecified-fg" theme-fg))
+                      default-fg
+                    theme-fg))
          (config-file "~/.config/alacritty/alacritty.toml")
          (temp-file "/tmp/alacritty-temp.toml")
-         (color-format (substring bg-color 1)))  ; Remove # from color
+         (bg-color-format (substring bg-color 1))
+         (fg-color-format (substring fg-color 1)))
     
     (with-temp-file temp-file
       (insert-file-contents config-file)
       (goto-char (point-min))
+      ;; Update background color
       (while (re-search-forward "background = \"0x[0-9A-Fa-f]+\"" nil t)
-        (replace-match (format "background = \"0x%s\"" color-format))))
+        (replace-match (format "background = \"0x%s\"" bg-color-format)))
+      ;; Update foreground color
+      (goto-char (point-min))
+      (while (re-search-forward "foreground = \"0x[0-9A-Fa-f]+\"" nil t)
+        (replace-match (format "foreground = \"0x%s\"" fg-color-format))))
     
     (rename-file temp-file config-file t)))
 
