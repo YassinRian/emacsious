@@ -2,7 +2,7 @@
 (require 'my-functions)
 (require 'boon-moves)
 (require 'expreg)
-(require 'bind-key)
+(require 'custom-functions)
 
 
 ;; ================================================================ Normal Mode Keybindings**
@@ -110,13 +110,32 @@
 (global-set-key (kbd "f") 'hydra-change-mode/body)
 
 ;; =============================================================== Dired Mode **
+(define-minor-mode my-dired-navigation-mode
+  "Minor mode for custom dired navigation."
+  :keymap (let ((map (make-sparse-keymap)))
+            (define-key map (kbd "o") #'next-line)
+            (define-key map (kbd "i") #'previous-line)
+            (define-key map (kbd "j") #'dired-up-directory)
+            (define-key map (kbd ";") #'my-dired-open)
+            (define-key map (kbd "SPC") #'hydra-dired/body)
+            map))
+
+;; Enable the minor mode when entering dired-mode
+(add-hook 'dired-mode-hook #'my-dired-navigation-mode)
+
+;; Disable the minor mode when leaving dired-mode
+(add-hook 'dired-mode-hook 
+          (lambda ()
+            (add-hook 'change-major-mode-hook
+                     (lambda () (my-dired-navigation-mode -1))
+                     nil t)))
 
 ;; =============================================================== Other keybindings **
 
 ;;viper
 (define-key my-modal-normal-map (kbd ":") #'viper-ex)
 
-;; vertico
+;; vertico easy navigation
 (define-key vertico-map (kbd "f") #'hydra-vertico-mode/body)  
 
 (defun my-activate-vertico-nav ()

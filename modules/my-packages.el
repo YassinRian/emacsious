@@ -119,6 +119,7 @@
 (require 'config-python-corfu)
 (require 'config-vertico)
 (require 'config-search)
+(require 'config-dired)
 
 
 

@@ -1,87 +1,68 @@
 ;;; config-dired.el --- Advanced dired configuration -*- lexical-binding: t -*-
 
 ;;; Commentary:
-;; Comprehensive dired functionality using Hydra
+;; Comprehensive dired functionality using Pretty-Hydra
 
 ;;; Code:
 
-(require 'hydra)
+(require 'pretty-hydra)
 (require 'dired)
 (require 'dired-x)
 (require 'dired-aux)
 
-;; ========================= Dired Hydra ================================
+;; ========================= Dired Pretty-Hydra ================================
 
-(defhydra hydra-dired (:hint nil :exit t)
-  "
-  Dired Commands
-  ^Navigation^        ^Mark^             ^Actions^          ^View^
-  ^^^^^^^^-----------------------------------------------------------------
-  _n_: Next          _m_: Mark          _R_: Rename        _v_: View
-  _p_: Previous      _u_: Unmark        _C_: Copy          _V_: View Other
-  _j_: Jump          _t_: Toggle        _D_: Delete        _o_: Sort
-  _f_: Find          _*_: Executables   _Z_: Compress      _(_: Details
-  
-  ^Mark by^          ^Filter^           ^Operations^       ^Special^
-  ^^^^^^^^-----------------------------------------------------------------
-  _._: Extension     _/_: Filter        _T_: Touch         _W_: Wdired
-  _@_: Symlinks      _l_: Filter List   _O_: Chmod         _+_: Create Dir
-  _#_: Auto Save     _g_: Refresh       _G_: Chgrp         _!_: Shell Cmd
-  _%_: Regexp        _h_: Hide Dots     _M_: Chmod         _&_: Async Cmd
-  "
-  ;; Navigation
-  ("n" dired-next-line "next")
-  ("p" dired-previous-line "previous")
-  ("j" dired-goto-file "jump to file")
-  ("f" dired-find-file "find file")
-  
-  ;; Basic Marking
-  ("m" dired-mark "mark")
-  ("u" dired-unmark "unmark")
-  ("t" dired-toggle-marks "toggle marks")
-  ("*" dired-mark-executables "mark executables")
-  
-  ;; Mark by Type
-  ("." dired-mark-extension "mark extension")
-  ("@" dired-mark-symlinks "mark symlinks")
-  ("#" dired-mark-auto-save-files "mark autosave")
-  ("%" dired-mark-files-regexp "mark regexp")
-  
-  ;; Filtering
-  ("/" dired-narrow "filter")
-  ("l" dired-filter-group-mode "filter list")
-  ("g" revert-buffer "refresh")
-  ("h" dired-hide-dotfiles-mode "hide dotfiles")
-  
-  ;; Actions
-  ("R" dired-do-rename "rename")
-  ("C" dired-do-copy "copy")
-  ("D" dired-do-delete "delete")
-  ("Z" dired-do-compress "compress")
-  
-  ;; Operations
-  ("T" dired-do-touch "touch")
-  ("O" dired-do-chmod "chmod")
-  ("G" dired-do-chgrp "chgrp")
-  ("M" dired-do-chmod "chmod")
-  
-  ;; View
-  ("v" dired-view-file "view")
-  ("V" dired-view-file-other-window "view other")
-  ("o" dired-sort-toggle-or-edit "sort")
-  ("(" dired-hide-details-mode "details")
-  
-  ;; Special
-  ("W" wdired-change-to-wdired-mode "wdired")
-  ("+" dired-create-directory "create dir")
-  ("!" dired-do-shell-command "shell command")
-  ("&" dired-do-async-shell-command "async command")
-  
-  ;; Exit
-  ("q" nil "quit" :exit t)
-  ("<escape>" nil nil :exit t))
+(pretty-hydra-define hydra-dired
+  (:title "Dired Commands" :quit-key "q" :color blue)
+  ("Navigation"
+   (("n" dired-next-line "next")
+    ("p" dired-previous-line "previous")
+    ("j" dired-goto-file "jump to file")
+    ("f" dired-find-file "find file"))
 
-;; Bind the hydra to your preferred key
+   "Mark"
+   (("m" dired-mark "mark")
+    ("u" dired-unmark "unmark")
+    ("t" dired-toggle-marks "toggle marks")
+    ("*" dired-mark-executables "mark executables"))
+
+   "Mark by Type"
+   (("." dired-mark-extension "mark extension")
+    ("@" dired-mark-symlinks "mark symlinks")
+    ("#" dired-mark-auto-save-files "mark autosave")
+    ("%" dired-mark-files-regexp "mark regexp"))
+
+   "Filter"
+   (("/" dired-narrow "filter")
+    ("l" dired-filter-group-mode "filter list")
+    ("g" revert-buffer "refresh")
+    ("h" dired-hide-dotfiles-mode "hide dotfiles"))
+
+   "Actions"
+   (("R" dired-do-rename "rename")
+    ("C" dired-do-copy "copy")
+    ("D" dired-do-delete "delete")
+    ("Z" dired-do-compress "compress"))
+
+   "Operations"
+   (("T" dired-do-touch "touch")
+    ("O" dired-do-chmod "chmod")
+    ("G" dired-do-chgrp "chgrp")
+    ("M" dired-do-chmod "chmod"))
+
+   "View"
+   (("v" dired-view-file "view")
+    ("V" dired-view-file-other-window "view other")
+    ("o" dired-sort-toggle-or-edit "sort")
+    ("(" dired-hide-details-mode "details"))
+
+   "Special"
+   (("W" wdired-change-to-wdired-mode "wdired")
+    ("+" dired-create-directory "create dir")
+    ("!" dired-do-shell-command "shell command")
+    ("&" dired-do-async-shell-command "async command"))))
+
+;; Bind the pretty-hydra to your preferred key
 (global-set-key (kbd "C-c d") #'hydra-dired/body)
 
 ;; ========================= Helper Functions ============================
