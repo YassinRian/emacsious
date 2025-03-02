@@ -6,8 +6,6 @@
 ;;; Code:
 
 
-(require 'custom-functions)
-
 ;; Prevent warnings about undefined variables/functions
 (defvar my-modal-mode)
 
@@ -181,14 +179,8 @@
 ;; Replace your current hook with this
 (add-hook 'after-change-major-mode-hook #'my-modal-setup-for-buffer)
 
-;;========================== hydra ===========================
-
-(defhydra hydra-change-mode (:color blue :body-pre (insert "f") :idle 1.0 :timeout 0.5)
-  ("d" (progn (delete-char -1)
-  	      (my-corfu-quit)
-	      (my-modal-enter-normal-mode))))
-   
 
 
+;;======================================================================= EOF ===========================================================
 (provide 'my-modal)
 ;;; my-modal.el ends here

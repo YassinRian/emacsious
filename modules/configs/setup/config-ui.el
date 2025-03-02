@@ -29,10 +29,7 @@
 (add-to-list 'default-frame-alist 
              '(fullscreen . maximized))  ; Start maximized
 
-;; Window divider settings
-(setq window-divider-default-right-width 1
-      window-divider-default-places 'right-only)
-(window-divider-mode 1)
+
 
 ;; =========== Top padding trucje
 
@@ -90,48 +87,78 @@
   "Return t if we're running in a terminal."
   (not (display-graphic-p)))
 
+;; Function to update beacon color based on current ef-theme
+;; (defun my/update-beacon-color ()
+;;   "Update beacon color using current ef-theme colors."
+;;   (setq beacon-color (ef-themes-get-color-value 'fg-dim)))  ; Using a subtle magenta
+
 ;; Configure beacon based on display type
 (defun my/configure-beacon ()
   "Configure beacon settings based on display type."
   (if (my/in-terminal-p)
       ;; Terminal settings
       (setq beacon-size 10  ; Smaller size for terminal
-            beacon-blink-duration 0.2  ; Faster blink
+            ;;beacon-blink-duration 0.5  
             beacon-blink-delay 0
-            beacon-color "magenta"  ; Use basic color name for better terminal compatibility
+            beacon-color (ef-themes-get-color-value 'fg-dim)
             beacon-background-color nil)  ; Let terminal handle background
     ;; GUI settings
     (setq beacon-size 25
           beacon-blink-duration 0.3
           beacon-blink-delay 0.1
-          beacon-color (ef-themes-get-color-value 'magenta-faint))))
+          beacon-color (ef-themes-get-color-value 'fg-dim))))
 
-;; Update beacon configuration when theme changes
-(defun my/update-beacon-config ()
-  "Update beacon configuration."
-  (my/configure-beacon))
-
-;; Initial configuration
 (my/configure-beacon)
 
-;; Update when theme changes
-(add-hook 'ef-themes-post-load-hook #'my/update-beacon-config)
 
-;; Enable beacon mode
-(beacon-mode 1)
+;; Update color when theme changes
+(add-hook 'ef-themes-post-load-hook #'my/configure-beacon)
 
-;; Advise movement commands to trigger beacon
+;; Enable beacon
+(beacon-mode t)
+
+;; Clear any existing advice
+;;(advice-remove 'next-line #'my/pulse-line)
+;;(advice-remove 'previous-line #'my/pulse-line)
+
+;; Minimal pulse function
 (defun my/pulse-line (&rest _)
-  "Pulse the current line using beacon."
   (beacon-blink))
 
-;; Add advice to movement commands
-(dolist (command '(other-window windmove-up windmove-down windmove-left windmove-right
-                  scroll-up-command scroll-down-command
-                  recenter-top-bottom move-to-window-line-top-bottom
-                  beginning-of-buffer end-of-buffer
-                  next-line previous-line))
-  (advice-add command :after #'my/pulse-line))
+;; Only advise vertical movement
+(advice-add 'next-line :after #'my/pulse-line)
+(advice-add 'previous-line :after #'my/pulse-line)
+
+
+;; Disable cursor blinking in all scenarios
+(blink-cursor-mode -1)
+(setq visible-cursor nil)
+(setq blink-cursor-blinks 0)
+(setq blink-cursor-interval 0)
+(setq blink-cursor-delay 0)
+
+;; Add terminal-specific commands to disable cursor blinking
+(defun disable-terminal-cursor-blinking ()
+  "Disable cursor blinking in terminal"
+  (when (not (display-graphic-p))
+    ;; Send terminal escape sequences to disable blinking
+    (send-string-to-terminal "\e[?12l")
+    (send-string-to-terminal "\e[?25h")
+    
+    ;; For some terminals, we need to reset cursor style
+    (send-string-to-terminal "\e[0 q")  ;; Reset to default
+    (send-string-to-terminal "\e[2 q")  ;; Set to steady block
+    ))
+
+;; Run when Emacs starts
+(disable-terminal-cursor-blinking)
+
+;; Run when creating new frames
+(add-hook 'after-make-frame-functions
+          (lambda (frame)
+            (with-selected-frame frame
+              (disable-terminal-cursor-blinking))))
+
 
 ;; ========================= Theme Configuration =========================
 
@@ -267,6 +294,23 @@
 ;; Add this to ef-themes hooks
 (add-hook 'ef-themes-post-load-hook #'update-alacritty-colors)
 (add-hook 'after-init-hook #'update-alacritty-colors)
+
+;; =================== window distinction ==============================
+
+(defun my-set-window-divider ()
+  "Set window divider color to match ef-themes border with reduced opacity."
+  (let ((border-color (ef-themes-get-color-value 'border)))
+    ;; Make the border more subtle by using the background color mixed with border
+    (let ((subtle-color (ef-themes-get-color-value 'bg-inactive)))
+      (set-face-background 'vertical-border subtle-color)
+      (set-face-foreground 'vertical-border subtle-color))))
+
+;; For theme switches
+(add-hook 'ef-themes-post-load-hook #'my-set-window-divider)
+;; For initial load
+(add-hook 'after-init-hook #'my-set-window-divider)
+
+
 
 (provide 'config-ui)
 ;;; config-ui.el ends here

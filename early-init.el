@@ -2,11 +2,7 @@
 (setq package-enable-at-startup nil)
 (setq package-quickstart nil)
 
-;; Use Elpaca for package management
-(setq-default straight-use-package-by-default t)
-
-
-
+;; Set up Elpaca
 (defvar elpaca-installer-version 0.9)
 (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
 (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
@@ -45,10 +41,8 @@
     (load "./elpaca-autoloads")))
 (add-hook 'after-init-hook #'elpaca-process-queues)
 (elpaca `(,@elpaca-order))
-
-
-;;(require 'elpaca)
-;;(elpaca elpaca `(elpaca :host github :repo "progfolio/elpaca"))
+  
+(setq elpaca-use-package-compat-silent t)
 
 ;; Ensure Elpaca is initialized
 (elpaca-wait)

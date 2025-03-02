@@ -9,6 +9,7 @@
 (require 'my-modal)
 (require 'ef-themes)
 (require 'vc)
+(require 'hydra)
 
 ;; =================================== Faces ====================================
 
@@ -58,20 +59,20 @@
 
 ;; ============================ Helper Functions ================================
 
-
+;; Style 4 - Symbolic
 (defun my-modeline-state ()
-  "Get the current modal state indicator."
+  "Get the current modal state indicator with symbolic icons."
   (let ((state (if (boundp 'my-modal-state)
                    my-modal-state
-                 'insert)))  ; default to insert if state not set
+                 'insert)))
     (pcase state
-      ('normal (propertize "NORMAL" 'face 'my-modeline-normal))
-      ('visual (propertize "VISUAL" 'face 'my-modeline-visual))
-      ('insert (propertize "INSERT" 'face 'my-modeline-insert))
-      ('yank   (propertize "YANK"   'face 'my-modeline-normal))
-      ('delete (propertize "DELETE" 'face 'my-modeline-normal))
-      ('menu1  (propertize "MENU1" 'face 'my-modeline-normal))
-      (_       (propertize "INSERT" 'face 'my-modeline-insert)))))
+      ('normal (propertize " ⚡ Normal " 'face 'my-modeline-normal))
+      ('visual (propertize " 👁  Visual " 'face 'my-modeline-visual))
+      ('insert (propertize " ✎  Insert " 'face 'my-modeline-insert))
+      ('yank   (propertize " ⎘  Yank " 'face 'my-modeline-normal))
+      ('delete (propertize " ⌦  Delete " 'face 'my-modeline-normal))
+      ('menu1  (propertize " ☰  Menu1 " 'face 'my-modeline-normal))
+      (_       (propertize " ✎  Insert " 'face 'my-modeline-insert)))))
 
 ;; Add hook to update modeline when state changes
 (add-hook 'my-modal-state-change-hook #'force-mode-line-update)
@@ -160,7 +161,14 @@
                           :background bg-main)
         (set-face-attribute 'my-modeline-dim nil
                           :foreground (ef-themes-get-color-value 'fg-dim)
-                          :background bg-main)))))
+                          :background bg-main)
+                          
+    ;; Keep modeline hidden during theme changes if hydra is active
+        (when (and (boundp 'my-hydra-modeline-hidden) my-hydra-modeline-hidden)
+          (setq-default mode-line-format nil)
+          (setq mode-line-format nil))
+                          
+                          ))))
 
 ;; Make sure to call this after loading a theme
 (add-hook 'ef-themes-post-load-hook #'my-modeline-update-faces)
@@ -168,6 +176,11 @@
 ;; You might also want to call it now if a theme is already loaded
 (when (bound-and-true-p ef-themes-post-load-hook)
   (my-modeline-update-faces))
+  
+  
+  
+  
+ 
 
 ;; ============================= Modeline Format ===============================
 
@@ -186,5 +199,73 @@
                   (propertize "  ")  ; Right margin
                   ))))
                   
+
+;; =============================== make modeline invisible when hydra is active ========================
+
+
+(defvar my-hydra-modeline-hidden nil)
+(defvar my-hydra-previous-mode-line-format nil)
+(defvar my-hydra-timer nil)
+
+;; Function to hide modeline
+(defun my-hydra-hide-modeline ()
+  "Hide modeline when hydra is active."
+  (unless my-hydra-modeline-hidden
+    (setq my-hydra-previous-mode-line-format mode-line-format)
+    (setq-default mode-line-format nil)
+    (setq mode-line-format nil)
+    (setq my-hydra-modeline-hidden t)))
+
+;; Function to restore modeline
+(defun my-hydra-restore-modeline ()
+  "Restore modeline when hydra is inactive."
+  (when my-hydra-modeline-hidden
+    (setq-default mode-line-format my-hydra-previous-mode-line-format)
+    (setq mode-line-format my-hydra-previous-mode-line-format)
+    (setq my-hydra-modeline-hidden nil)))
+
+;; Function to check if a hydra is currently active
+(defun my-hydra-active-p ()
+  "Return non-nil if a hydra is currently active."
+  (and (boundp 'hydra-curr-map) hydra-curr-map))
+
+;; Setup timer to monitor hydra state
+(defun my-hydra-setup-modeline-monitor ()
+  "Set up a timer to monitor hydra state and control modeline visibility."
+  (when my-hydra-timer
+    (cancel-timer my-hydra-timer))
+  
+  (setq my-hydra-timer
+        (run-with-timer 0 0.1 (lambda ()
+                                 (if (my-hydra-active-p)
+                                     (my-hydra-hide-modeline)
+                                   (my-hydra-restore-modeline))))))
+
+;; Initialize the monitor when Emacs starts or package loads
+(with-eval-after-load 'hydra
+  (my-hydra-setup-modeline-monitor))
+  
+  
+;; Preemptive hide for smoother transition
+(defun my-hydra-preemptive-hide-modeline (&rest _)
+  "Hide modeline immediately before hydra begins to render."
+  (my-hydra-hide-modeline))
+
+;; Add advice to catch hydra activation at the earliest possible point
+(with-eval-after-load 'hydra
+  (advice-add 'hydra-set-transient-map :before #'my-hydra-preemptive-hide-modeline)
+  (advice-add 'hydra--read :before #'my-hydra-preemptive-hide-modeline))
+  
+  
+ ;; Fix for theme switching
+(defun my-hydra-fix-after-theme-change (&rest _)
+  "Ensure modeline stays hidden after theme changes if hydra is active."
+  (when (my-hydra-active-p)
+    (my-hydra-hide-modeline)))
+    
+  (with-eval-after-load 'ef-themes
+  (add-hook 'ef-themes-post-load-hook #'my-hydra-fix-after-theme-change))
+  
+
 (provide 'my-modeline)
 ;;; my-modeline.el ends here

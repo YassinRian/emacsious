@@ -7,13 +7,13 @@
 ;; Install & Configure Completion Frameworks
 (elpaca hydra)
 (elpaca pretty-hydra)
-(elpaca boon)
 (elpaca bind-key)
+(elpaca boon)
 
 ;; Install & Configure Editing Tools
-(elpaca undo-tree) ;; Persistent undo history
 (elpaca which-key) ;; Show keybinding hints
-
+(elpaca vundo)
+(elpaca undo-fu)
 ;; =====================  UI Enhancements =================================
 
 ;; Themes and Modeline
@@ -69,9 +69,19 @@
 
 ;; search
 (elpaca consult)
+(elpaca consult-dir
+  :config
+  (setq consult-dir-default-command #'consult-dir-dired))
+(elpaca phi-search)
+(elpaca occur-context-resize
+   ;; Custom navigation in the occur buffer
+   (define-key occur-mode-map (kbd "i") 'occur-prev)
+   (define-key occur-mode-map (kbd "o") 'occur-next))
 (elpaca affe)
 (elpaca wgrep)
 (elpaca deadgrep)
+(elpaca embark)
+(elpaca embark-consult)
 
 ;; Completion Corfu
 (elpaca corfu)
@@ -97,29 +107,37 @@
 ;; Viper
 (autoload 'viper-ex "viper")
 
-;; =====================  // UI Enhancements =================================
 
 
-;; Hooks for lazy loading
-(elpaca-wait)
+;; ========================== General Package Settings ===============================================
 
 
 
-;; Load custom configurations
+;; ========================== Elpaca wait
+
+(elpaca-wait)    
+
+;; ======================================= Load custom configurations =================================
+;; loaded after the elpaca packages
+
 (add-to-list 'load-path (expand-file-name "modules/configs/utilities" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "modules/configs/downloaded_packages" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "modules/configs/setup" user-emacs-directory))
 
 
 ;; Only loading what is needed at startup, other packages are required where they are needed (see other files)
+
 (require 'config-ui)
 (require 'config-scroll)
-(require 'config-visual-feedback)
 (require 'config-completion-corfu)
 (require 'config-python-corfu)
 (require 'config-vertico)
 (require 'config-search)
 (require 'config-dired)
+(require 'config-buffers)
+(require 'pretty-hydras)
+
+
 
 
 

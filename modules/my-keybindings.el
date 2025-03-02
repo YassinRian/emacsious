@@ -1,9 +1,14 @@
+;;; -*- lexical-binding: t; -*-
+
 (require 'my-modal)
-(require 'my-functions)
 (require 'boon-moves)
 (require 'expreg)
 (require 'custom-functions)
+(require 'phi-search)
+(require 'pretty-hydras)
+(require 'vundo)
 
+;; ================================================================ Keybindings =======================================
 
 ;; ================================================================ Normal Mode Keybindings**
 
@@ -20,16 +25,20 @@
 (define-key my-modal-normal-map (kbd "O") #'forward-paragraph)
 (define-key my-modal-normal-map (kbd "u") #'beginning-of-line)
 (define-key my-modal-normal-map (kbd "p") #'end-of-line)
+(define-key my-modal-normal-map (kbd "<") #'beginning-of-buffer)
+(define-key my-modal-normal-map (kbd ">") #'end-of-buffer)
 
 (define-key my-modal-normal-map (kbd "v") #'my-modal-enter-insert-mode) ;; Insert mode
 (define-key my-modal-normal-map (kbd "SPC") #'my-modal-enter-visual-mode) ;; Visual mode
 (define-key my-modal-normal-map (kbd "c") #'my-modal-enter-yank-mode)
 (define-key my-modal-normal-map (kbd "d") #'my-modal-enter-delete-mode)
-(define-key my-modal-normal-map (kbd "w") #'my-modal-enter-menu1-mode)
+(define-key my-modal-normal-map (kbd "w") #'start-menu/body) ;; start menu
+(define-key my-modal-normal-map (kbd "g") #'hydra-goto/body) ;; start menu
+
 
 ;; Redo bindings
-(define-key my-modal-normal-map (kbd "r") #'my-enhanced-undo)
-(define-key my-modal-normal-map (kbd "R") #'my-enhanced-redo)
+(define-key my-modal-normal-map (kbd "r") #'undo-fu-only-undo)
+(define-key my-modal-normal-map (kbd "R") #'undo-fu-only-redo)
 
 ;; Scroll
 (define-key my-modal-normal-map (kbd "S-M-k") #'scroll-up-line)
@@ -41,8 +50,8 @@
 
  
 ;; =============================================================== Visual Mode Keybindings**
-(define-key my-modal-visual-map (kbd "j") #'backward-word)
-(define-key my-modal-visual-map (kbd ";") #'forward-word)
+(define-key my-modal-visual-map (kbd "j") #'boon-smarter-backward)
+(define-key my-modal-visual-map (kbd ";") #'boon-smarter-forward)
 (define-key my-modal-visual-map (kbd "k") #'backward-char)
 (define-key my-modal-visual-map (kbd "l") #'forward-char)
 (define-key my-modal-visual-map (kbd "i") #'previous-line)
@@ -64,7 +73,9 @@
 (define-key my-modal-visual-map (kbd "h") #'my-visual-select-paragraph)
 (define-key my-modal-visual-map (kbd "s") #'my-visual-select-between-spaces)
 (define-key my-modal-visual-map (kbd "SPC") #'my-visual-select-line)
-(define-key my-modal-visual-map (kbd "ai") #'visual-between-equal-chars)
+;;(define-key my-modal-visual-map (kbd "ai") #'visual-between-equal-chars)
+;; Bind this wrapper function to ai
+(define-key my-modal-visual-map (kbd "ai") #'visual-between-equal-chars-delete-and-insert)
 (define-key my-modal-visual-map (kbd "aa") #'visual-including-equal-chars)
 
 ;; "Add surrounding keybindings to visual mode."
@@ -91,22 +102,33 @@
 (define-key my-modal-delete-map (kbd "k") #'my-delete-char-left)
 (define-key my-modal-delete-map (kbd "l") #'my-delete-char-right)
 (define-key my-modal-delete-map (kbd "c") #'my-delete-char-at-point)
+(define-key my-modal-delete-map (kbd "w") #'delete-word-at-cursor)
+(define-key my-modal-delete-map (kbd "s") #'my-delete-extended-string)
+(define-key my-modal-delete-map (kbd "i") #'delete-between-equal-chars)
+(define-key my-modal-delete-map (kbd "a") #'delete-including-equal-chars)
+
 
 ;; Line operations
 (define-key my-modal-delete-map (kbd "p") #'my-delete-line-end)      ; delete to line end
 (define-key my-modal-delete-map (kbd "u") #'my-delete-line-start)    ; delete to line start
-(define-key my-modal-delete-map (kbd "SPC") #'kill-whole-line)         ; delete entire line
-
+;;(define-key my-modal-delete-map (kbd "SPC") #'kill-whole-line)     ; delete entire line
+;; Option 2: Use a lambda in the keybinding
+(define-key my-modal-delete-map (kbd "SPC") ;; handy to have this end on normal-mode
+  (lambda ()
+    (interactive)
+    (kill-whole-line)
+    (my-modal-enter-normal-mode)))
 
 ;; ============================================================== Menu1 mode **
 
 ;; Add at least one binding or an escape hatch
-(define-key my-modal-menu1-map (kbd "<remap> <self-insert-command>") #'ignore) ;; ignore other keys
-(define-key my-modal-menu1-map (kbd "<escape>") #'my-modal-enter-normal-mode)
-(define-key my-modal-menu1-map (kbd "s") #'hydra-search/body)
+;;(define-key my-modal-menu1-map (kbd "<remap> <self-insert-command>") #'ignore) ;; ignore other keys
+;;(define-key my-modal-menu1-map (kbd "<escape>") #'my-modal-enter-normal-mode)
+;;(define-key my-modal-menu1-map (kbd "s") #'hydra-search/body)
+;;(define-key my-modal-menu1-map (kbd "SPC") #'hydra-buffers/body)
 
 
-;; =============================================================== Global keybinding **
+;; =============================================================== Switching to Normal Mode **
 (global-set-key (kbd "f") 'hydra-change-mode/body)
 
 ;; =============================================================== Dired Mode **
@@ -132,10 +154,12 @@
 
 ;; =============================================================== Other keybindings **
 
-;;viper
+;; ==== viper **
+
 (define-key my-modal-normal-map (kbd ":") #'viper-ex)
 
-;; vertico easy navigation
+;; ===== vertico easy navigation **
+
 (define-key vertico-map (kbd "f") #'hydra-vertico-mode/body)  
 
 (defun my-activate-vertico-nav ()
@@ -146,10 +170,38 @@
     (define-key map (kbd "i") #'previous-line)
     (set-transient-map map t)))
 
-(defhydra hydra-vertico-mode (:color blue :body-pre (insert "f") :idle 1.0 :timeout 0.5)
-  ("d" (progn (delete-char -1)
-	      (my-activate-vertico-nav))))
+	      
+;; ===== Phi-search **
+
+(define-key phi-search-default-map (kbd "f") #'hydra-phi-mode/body) 
+
+(defun my-activate-phi-nav ()
+  "Activate transient navigation map for phi."
+  (interactive)
+  (let ((map (make-sparse-keymap)))
+	(define-key map (kbd "i") #'phi-search-again-or-previous)
+	(define-key map (kbd "o") #'phi-search-again-or-next)
+	(define-key map (kbd "s") #'phi-search-quick-occur)
+	   ;; Add a key to switch back to phi-search occur results if they exist
+    (define-key map (kbd "r") 
+                (lambda ()
+                  (interactive)
+                  (let ((occur-buf (get-buffer "*Phi-Occur*")))
+                    (when occur-buf
+                      (select-window (display-buffer occur-buf))))))
+    (set-transient-map map t #'identity)))
+    	      
+;; ======== vundo **
+
+(define-key vundo-mode-map (kbd ";") #'vundo-forward)
+(define-key vundo-mode-map (kbd "j") #'vundo-backward)
+(define-key vundo-mode-map (kbd "o") #'vundo-next)
+(define-key vundo-mode-map (kbd "i") #'vundo-previous)
+(define-key vundo-mode-map (kbd "u") #'vundo-stem-root)
+(define-key vundo-mode-map (kbd "p") #'vundo-stem-end)
+(define-key vundo-mode-map (kbd "q") #'vundo-quit)
+(define-key vundo-mode-map (kbd "RET") #'vundo-confirm)
 
 
-
+;;================================================================================================== EOF =====================================================================================
 (provide 'my-keybindings)

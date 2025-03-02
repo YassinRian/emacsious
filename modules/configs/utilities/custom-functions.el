@@ -2,6 +2,8 @@
 
 ;; Couple of handy function
 
+(require 'hydra)
+
 ;; widen window based on text length
 ;; =======================================================
 (defun fit-window-to-buffer-width (&optional window max-width min-width)
@@ -114,8 +116,8 @@
 (defun my-switch-window-hook ()
   (interactive)
   "Function to run when switching to another window."
-  (when (equal (buffer-name) "*eshell*")
-    (boon-set-insert-state)))
+  (unless (equal (buffer-name) "*eshell*")
+    (my-modal-enter-normal-mode)))
 
 ;;--------------------------------------------------------
 ;; switch Grep mode to command-state mode
@@ -219,7 +221,12 @@
 ;;--------------------------------------------------------
 ;; Other window call hydra so that the switching of windows stays active
 ;; ==================================================================
-(advice-add 'other-window :after '(lambda (&rest args)
+
+(defun my-other-window ()
+  (interactive)
+  (other-window))
+
+(advice-add 'my-other-window :after '(lambda (&rest args)
                                     (call-interactively 'hydra-other-win/body)))
 
 ;;--------------------------------------------------------
@@ -314,8 +321,6 @@ If it is a file, use `my-dired-find-file-other-window-vertically`."
 
 (add-hook 'dired-mode-hook 'my-dired-mode-setup)
 
-
-
 ;;--------------------------------------------------------
 ;; Hulpfunctie om te zoeken naar een specifieke string in
 ;; alle bestanden van een bepaalde folder
@@ -394,6 +399,7 @@ set to the directory chosen using `consult-dir'."
 ;;--------------------------------------------------------
 ;; custom function to duplicate a file in dired, added to keybindings (see dired hydra)
 ;; =======================================================
+ 
 (defun dired-duplicate-this-file (suffix)
   "Duplicate file on this line."
   (interactive (list (read-string "Suffix: " "_COPY")))
@@ -477,10 +483,634 @@ Only prompts for the file name, and creates it in the current directory."
       (kill-whole-line))))
 
 ;;=============================================================================================================
-;;-------------------------------------------------------
-;; space function changes to boon-set-command-state
-;; =======================================================
 
+;;; Commentary:
+;; Custom functions used by the modal editing system
+
+
+;; Define a fallback function for unbound keys in delete mode
+(defun my-modal-delete-mode-handle-unbound ()
+  "Handle unbound keys in delete mode by switching to insert mode."
+  (interactive)
+  (let ((key (this-command-keys)))
+    (my-modal-enter-insert-mode)
+    (push key unread-command-events)))
+
+
+(defun my-delete-char-left ()
+  "Delete character to the left."
+  (interactive)
+  (progn
+  (delete-char -1)
+  (my-modal-enter-insert-mode)))
+
+(defun my-delete-char-right ()
+  "Delete character to the right."
+  (interactive)
+  (progn
+  (delete-char 1)
+  (my-modal-enter-insert-mode)))
+
+(defun my-delete-char-at-point ()
+  "Delete the character at point."
+  (interactive)
+  (progn
+  (delete-char 1)
+  (my-modal-enter-insert-mode)))
+
+
+(defun my-delete-line-end ()
+  "Delete from cursor to end of line."
+  (interactive)
+  (progn
+    (delete-region (point) (line-end-position))
+    (my-modal-enter-insert-mode)
+   ))
+
+(defun my-delete-line-start ()
+  "Delete from cursor to start of line."
+  (interactive)
+  (progn
+    (delete-region (line-beginning-position) (point))
+    (my-modal-enter-insert-mode)
+  ))
+
+(defun delete-buffer-content ()
+  "Delete the entire content of the current buffer."
+  (interactive)
+  (progn
+    (delete-region (point-min) (point-max))
+    (my-modal-enter-insert-mode)
+  ))
+
+(defun delete-word-at-cursor ()
+  "Delete the word where the cursor is positioned, including any space after it."
+  (interactive)
+  (let ((word-bounds (bounds-of-thing-at-point 'word)))
+    (when word-bounds
+      (let ((word-end (cdr word-bounds)))
+        (delete-region (car word-bounds)
+                      (if (and (< word-end (line-end-position))
+                             (eq (char-after word-end) ?\s))
+                          (1+ word-end)
+                        word-end)))
+      ))
+  (my-modal-enter-insert-mode))
+
+(defun my-delete-word-backward-safe ()
+  "Safely delete the word before point."
+  (interactive)
+  (if (or buffer-read-only (bobp)) ;; Check if buffer is read-only or at the beginning
+      (message "Cannot delete: buffer is read-only or at beginning of buffer")
+    (let ((start (point)))
+      (backward-word)
+      (delete-region (point) start)
+      )))
+
+(defun my-delete-word-forward-safe ()
+  "Safely delete the word after point."
+  (interactive)
+  (if (or buffer-read-only (eobp)) ;; Check if buffer is read-only or at the end
+      (message "Cannot delete: buffer is read-only or at end of buffer")
+    (let ((start (point)))
+      (forward-word)
+      (delete-region start (point))
+      )))
+      
+      
+(defun my-delete-extended-string ()
+  "Delete an extended string at point based on context and enter insert mode."
+  (interactive)
+  (cond
+   ;; Inside quotes
+   ((thing-at-point 'string)
+    (let ((bounds (bounds-of-thing-at-point 'string)))
+      (delete-region (car bounds) (cdr bounds))))
+   
+   ;; Inside parentheses
+   ((thing-at-point 'list)
+    (let ((bounds (bounds-of-thing-at-point 'list)))
+      (delete-region (car bounds) (cdr bounds))))
+   
+   ;; URL or file path (no spaces)
+   ((thing-at-point 'url)
+    (let ((bounds (bounds-of-thing-at-point 'url)))
+      (delete-region (car bounds) (cdr bounds))))
+   
+   ;; Symbol (variable names, function names, etc.)
+   ((thing-at-point 'symbol)
+    (let ((bounds (bounds-of-thing-at-point 'symbol)))
+      (delete-region (car bounds) (cdr bounds))))
+   
+   ;; Default: delete non-whitespace sequence
+   (t
+    (let ((start (point))
+          (end (save-excursion
+                 (skip-chars-forward "^ \t\n\r")
+                 (point))))
+      (delete-region start end))))
+  
+  ;; Enter insert mode after deletion
+  (my-modal-enter-insert-mode))
+
+
+
+;;======== deletions through visual mode
+
+
+;; keybiding "d" in visual mode
+
+ (defun my-visual-delete ()
+  "Delete selected region, save to kill ring, and return to insert mode."
+  (interactive)
+  (when (region-active-p)
+    (kill-region (region-beginning) (region-end)))
+  (deactivate-mark)
+  (my-modal-enter-normal-mode)) ;; with this all deletes ends in the normal mode
+
+;; extra function for visual di, I want this one to end in insert-mode
+(defun visual-between-equal-chars-delete-and-insert ()
+  "Select between equal chars, delete selection, and enter insert mode."
+  (interactive)
+  (visual-between-equal-chars)
+  ;; Now implement the delete part but enter insert mode
+  (when (region-active-p)
+    (kill-region (region-beginning) (region-end)))
+  (deactivate-mark)
+  (my-modal-enter-insert-mode))
+
+
+;; keybiding "di" in visual mode
+(defun find-delimited-bounds ()
+  "Find bounds of delimited content under cursor."
+  (let* ((line-start (line-beginning-position))
+         (line-end (line-end-position))
+         (pos (point))
+         start end)
+    (save-excursion
+      ;; Find start delimiter
+      (while (and (> (point) line-start)
+                  (not start))
+        (backward-char)
+        (let ((char (string (char-after))))
+          (when (or (string-match-p "[\"'`({[<*]" char)
+                    (and (string= char "*")
+                         (not (string= (string (char-before)) "*"))))
+            (setq start (point)))))
+      ;; Find end delimiter
+      (when start
+        (goto-char (1+ start))
+        (let ((open-char (string (char-after start))))
+          (while (and (< (point) line-end)
+                     (not end))
+            (forward-char)
+            (let ((curr-char (string (char-before))))
+              (when (or (and (string= open-char "\"") (string= curr-char "\""))
+                       (and (string= open-char "'") (string= curr-char "'"))
+                       (and (string= open-char "`") (string= curr-char "`"))
+                       (and (string= open-char "(") (string= curr-char ")"))
+                       (and (string= open-char "{") (string= curr-char "}"))
+                       (and (string= open-char "[") (string= curr-char "]"))
+                       (and (string= open-char "<") (string= curr-char ">"))
+                       (and (string= open-char "*") (string= curr-char "*")))
+                (setq end (point))))))))
+    (when (and start end
+               (<= start pos end))
+      (cons start end))))
+
+
+(defun delete-between-equal-chars ()
+  "Delete content between matching characters, preserving the delimiters."
+  (interactive)
+  (let ((bounds (find-delimited-bounds)))
+    (when bounds
+      (save-excursion
+        (goto-char (car bounds))
+        (forward-char 1)
+        (let ((start (point))
+              (end (1- (cdr bounds))))
+          (kill-region start end)))
+      (my-modal-enter-insert-mode))))
+
+(defun delete-including-equal-chars ()
+  "Delete content between matching characters including the delimiters."
+  (interactive)
+  (let ((bounds (find-delimited-bounds)))
+    (when bounds
+      (kill-region (car bounds) (cdr bounds))
+      (my-modal-enter-insert-mode))))
+
+(defun my-delete-around-paragraph ()
+  "Delete paragraph and surrounding blank lines."
+  (interactive)
+  (let ((start (save-excursion
+                 (backward-paragraph)
+                 (skip-syntax-backward " >")
+                 (point)))
+        (end (save-excursion
+               (forward-paragraph)
+               (skip-syntax-forward " >")
+               (point))))
+    (kill-region start end)))
+
+
+;;========================= Visual Mode ========================================
+
+(defun my-visual-select-word ()
+  "Select the word at point if in visual mode."
+  (interactive)
+    (let ((bounds (bounds-of-thing-at-point 'word)))
+      (when bounds
+        (goto-char (car bounds))
+        (set-mark (point))
+        (goto-char (cdr bounds)))))
+
+
+(defun my-visual-select-line ()
+  "Select the current line if in visual mode."
+  (interactive)
+    (beginning-of-line)
+    (set-mark (point))
+    (end-of-line))
+
+(defun my-visual-select-paragraph ()
+  "Select the paragraph at point."
+  (interactive)
+    (let ((start (save-excursion
+                   (backward-paragraph)
+                   (skip-chars-forward "\n\t ")
+                   (point)))
+          (end (save-excursion
+                 (forward-paragraph)
+                 (skip-chars-backward "\n\t ")
+                 (point))))
+      (goto-char start)
+      (set-mark (point))
+      (goto-char end)))
+
+(defun bounds-of-text-between-spaces ()
+  "Find the bounds of text between spaces around point."
+  (interactive)
+  (save-excursion
+    (let (start end)
+      ;; Find start - move backward to space or buffer start
+      (if (re-search-backward "[[:space:]\n]" nil t)
+          (setq start (1+ (point)))
+        (setq start (point-min)))
+
+      ;; Find end - move forward to space or buffer end
+      (goto-char start)
+      (if (re-search-forward "[[:space:]\n]" nil t)
+          (setq end (1- (point)))
+        (setq end (point-max)))
+
+      ;; Return bounds if we found valid text
+      (when (< start end)
+        (cons start end)))))
+
+(defun my-visual-select-between-spaces ()
+  "Select text between spaces around point when in visual mode."
+  (interactive)
+  (let ((bounds (bounds-of-text-between-spaces)))
+    (when bounds
+      (goto-char (car bounds))
+      (set-mark (point))
+      (goto-char (cdr bounds)))))
+
+
+(defun visual-between-equal-chars ()
+  "Select content between matching characters."
+  (interactive)
+  (let* ((bounds (find-delimited-bounds)))  ; Using our helper function
+    (when bounds
+      (goto-char (car bounds))
+      (forward-char 1)
+      (set-mark (point))
+      (goto-char (1- (cdr bounds))))))
+
+
+(defun visual-including-equal-chars ()
+  "Select content including matching characters."
+  (interactive)
+  (let* ((bounds (find-delimited-bounds)))
+    (when bounds
+      (goto-char (car bounds))
+      (set-mark (point))
+      (goto-char (cdr bounds)))))
+
+
+
+;; ============= Yank mode ====================
+
+(defun visual-yank ()
+  "Copy the selected region to Emacs' kill ring."
+  (interactive)
+  (when (use-region-p)
+    (kill-ring-save (region-beginning) (region-end))
+    (deactivate-mark)
+    (message "Copied: %s" (current-kill 0 t))
+    (my-modal-enter-normal-mode)))
+
+(defun visual-paste ()
+  "Paste from Emacs' kill ring."
+  (interactive)
+  (when (car kill-ring)
+    (yank)
+    (my-modal-enter-normal-mode)))
+
+(defun visual-paste-from-history ()
+  "Show kill ring history in minibuffer and paste selected entry."
+  (interactive)
+  (when kill-ring
+    (let ((selected (completing-read
+                    "Select text to paste: "
+                    kill-ring
+                    nil t)))
+      (when selected
+        (insert selected)))))
+
+
+
+;; Insert of delimiters in visual mode  =====================================================
+
+
+;; Define delimiter pairs
+(defvar my-delimiter-pairs
+  '((?1 . ("(" . ")"))    ; Number 1 for parentheses
+    (?2 . ("[" . "]"))    ; Number 2 for square brackets
+    (?3 . ("{" . "}"))    ; Number 3 for curly braces
+    (?4 . ("\"" . "\""))  ; Number 4 for double quotes
+    (?5 . ("'" . "'"))    ; Number 5 for single quotes
+    (?6 . ("`" . "`"))    ; Number 6 for backticks
+    (?7 . ("<" . ">"))    ; Number 7 for angle brackets
+    (?8 . ("/*" . "*/"))  ; Number 8 for C-style comments
+    (?9 . ("<!--" . "-->")) ; Number 9 for HTML comments
+    (?0 . ("_" . "_")))   ; Number 0 for underscores
+  "Alist of delimiter pairs keyed by number keys.")
+
+(defun my-surround-region-with-delimiter (start end delimiter-key)
+  "Surround the region between START and END with delimiters specified by DELIMITER-KEY."
+  (interactive "r\nc")  ; Read region and a character
+  (let* ((delimiter-pair (cdr (assoc delimiter-key my-delimiter-pairs)))
+         (opening (car delimiter-pair))
+         (closing (cdr delimiter-pair)))
+    (when delimiter-pair
+      (save-excursion
+        (goto-char end)
+        (insert closing)
+        (goto-char start)
+        (insert opening)))))
+
+(defun my-visual-surround-with-delimiter (delimiter-key)
+  "Surround the current visual selection with delimiters."
+  (interactive "c")
+  (when (region-active-p)
+    (my-surround-region-with-delimiter (region-beginning) (region-end) delimiter-key)
+    (my-modal-enter-normal-mode)))  ; Exit visual mode after surrounding
+
+;; Define commands for each number key
+(defun my-visual-surround-1 () (interactive) (my-visual-surround-with-delimiter ?1))
+(defun my-visual-surround-2 () (interactive) (my-visual-surround-with-delimiter ?2))
+(defun my-visual-surround-3 () (interactive) (my-visual-surround-with-delimiter ?3))
+(defun my-visual-surround-4 () (interactive) (my-visual-surround-with-delimiter ?4))
+(defun my-visual-surround-5 () (interactive) (my-visual-surround-with-delimiter ?5))
+(defun my-visual-surround-6 () (interactive) (my-visual-surround-with-delimiter ?6))
+(defun my-visual-surround-7 () (interactive) (my-visual-surround-with-delimiter ?7))
+(defun my-visual-surround-8 () (interactive) (my-visual-surround-with-delimiter ?8))
+(defun my-visual-surround-9 () (interactive) (my-visual-surround-with-delimiter ?9))
+(defun my-visual-surround-0 () (interactive) (my-visual-surround-with-delimiter ?0))
+
+;; Optional: Add custom delimiter pairs
+;; (my-add-delimiter-pair ?+ "+" "+")  ; For +emphasizing+ text
+(defun my-add-delimiter-pair (key opening closing)
+  "Add a new delimiter pair to my-delimiter-pairs."
+  (interactive)
+  (add-to-list 'my-delimiter-pairs (cons key (cons opening closing))))
+  
+  
+;; ==================================================== Consult
+
+(defun my/consult-find-sort-by-depth-rg-fast ()
+  "Run consult-find with ripgrep (with exclusions) and sort results by path depth."
+  (interactive)
+  (let* ((dir (read-directory-name "Select directory: "))
+         (default-directory (if (and dir (file-directory-p dir))
+                               dir
+                             default-directory))
+         ;; Use ripgrep with common exclusions
+         (rg-results (shell-command-to-string 
+                     "rg --files --hidden --glob '!.git/' --glob '!node_modules/' --glob '!dist/' --glob '!build/'"))
+         ;; Split into lines and sort by depth
+         (sorted-results (sort (split-string rg-results "\n" t)
+                              (lambda (a b)
+                                (< (length (split-string a "/" t))
+                                   (length (split-string b "/" t)))))))
+    ;; Present the sorted results using consult
+    (let ((selection (consult--read
+                     sorted-results
+                     :prompt "Find (rg fast): "
+                     :category 'file
+                     :sort nil
+                     :require-match t
+                     :history 'file-name-history)))
+      (when selection
+        (find-file selection)))))
+        
+
+(defun my/consult-dir-then-find-by-depth-rg ()
+  "First select a directory with consult-dir, then find files sorted by path depth using ripgrep."
+  (interactive)
+  ;; Store current directory to detect change
+  (let ((original-dir default-directory)
+        selected-dir)
+    
+    ;; Call consult-dir to select a directory
+    (call-interactively 'consult-dir)
+    ;; Store the selected directory
+    (setq selected-dir default-directory)
+    
+    ;; Only proceed if directory changed
+    (when (not (equal original-dir selected-dir))
+      (let* (;; Use ripgrep with common exclusions
+             (rg-results (shell-command-to-string 
+                         "rg --files --hidden --glob '!.git/' --glob '!node_modules/' --glob '!dist/' --glob '!build/'"))
+             ;; Split into lines and sort by depth
+             (sorted-results (sort (split-string rg-results "\n" t)
+                                  (lambda (a b)
+                                    (< (length (split-string a "/" t))
+                                       (length (split-string b "/" t)))))))
+        ;; Present the sorted results using consult
+        (let ((selection (consult--read
+                         sorted-results
+                         :prompt "Find (rg): "
+                         :category 'file
+                         :sort nil   ; already sorted
+                         :require-match t
+                         :history 'file-name-history)))
+          (when selection
+            (find-file selection)))))))
+            
+            
+;; Create a wrapper function that finds a file and opens it in a horizontal split
+(defun my/find-file-split-right ()
+  "Find a file using consult and open it in a new window below."
+  (interactive)
+  (let ((completing-read-function #'completing-read-default))
+    ;; First, call the original function to get the file
+    (call-interactively #'my/consult-find-sort-by-depth-rg-fast)
+    ;; Now get the most recently visited file (which should be the one just opened)
+    (let ((recent-file (buffer-file-name)))
+      ;; Restore the buffer we had before finding the file
+      (switch-to-buffer (other-buffer (current-buffer) 1))
+      ;; Now split and open the file
+      (split-window-right)
+      (other-window 1)
+      (find-file recent-file))))
+
+
+;; ================================================================ Start Menu function **
+
+(defvar my-hydra-visible t "Whether the hydra menu is visible.")
+
+;; Define a persistent toggle variable if not already defined
+(defvar my-find-current-window nil
+  "When non-nil, find files in current window instead of other window.")
+  
+
+(defun toggle-hydra-visibility ()
+  "Toggle visibility of hydra hints."
+  (interactive)
+  (setq my-hydra-visible (not my-hydra-visible))
+  (setq hydra-is-helpful my-hydra-visible)
+  (message "Hydra visibility is now %s" (if my-hydra-visible "on" "off"))
+  ;; Redisplay the current hydra if one is active
+  (when (bound-and-true-p hydra-curr-body-fn)
+    (funcall hydra-curr-body-fn)))
+
+
+;; ====================== phi search custom functions **
+
+(defun phi-search-quick-occur ()
+  "Create an occur buffer from phi-search without exiting."
+  (interactive)
+  (let* ((pattern (buffer-substring-no-properties 
+                  (minibuffer-prompt-end) 
+                  (point-max)))
+         (target-buffer (cond
+                        ((consp phi-search--target) (cdr phi-search--target))
+                        ((bufferp phi-search--target) phi-search--target)
+                        (t (current-buffer))))
+         (minibuffer-window (selected-window))
+         (occur-buf (get-buffer-create "*Phi-Occur*")))
+    
+    ;; Verify that we have a valid buffer and pattern
+    (when (and pattern
+               (not (string-empty-p pattern))
+               (buffer-live-p target-buffer))
+      
+      ;; Create the occur buffer manually
+      (with-current-buffer occur-buf
+        (occur-mode)
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert (format "Matches for '%s' in buffer: %s\n\n"
+                          pattern (buffer-name target-buffer)))
+          
+          ;; Manually find and format matches
+          (let ((count 0))
+            (with-current-buffer target-buffer
+              (save-excursion
+                (goto-char (point-min))
+                (while (re-search-forward pattern nil t)
+                  (let* ((line-num (line-number-at-pos))
+                         (line-beg (line-beginning-position))
+                         (line-text (buffer-substring-no-properties 
+                                     line-beg (line-end-position)))
+                         (match-pos (match-beginning 0)))
+                    
+                    (with-current-buffer occur-buf
+                      (insert (format "%7d: %s\n" line-num line-text))
+                      
+                      ;; Add navigation properties
+                      (put-text-property 
+                       (line-beginning-position) (line-end-position)
+                       'occur-target match-pos)
+                      (put-text-property
+                       (line-beginning-position) (line-end-position)
+                       'occur-target-line-face 'link))
+                    
+                    (setq count (1+ count))))))
+            
+            ;; Insert count information
+            (goto-char (point-min))
+            (forward-line 1)
+            (if (> count 0)
+                (insert (format "%d matches found\n\n" count))
+              (insert "No matches found\n\n"))))
+        
+        ;; Store the minibuffer window for returning to phi-search
+        (set (make-local-variable 'phi-search-minibuffer) minibuffer-window)
+        
+	(defun phi-occur-return-to-phi ()
+	  "Return to phi-search from occur buffer and close the occur window and buffer."
+	  (interactive)
+	  (when (boundp 'phi-search-minibuffer)
+	    (let ((win phi-search-minibuffer)
+		  (occur-buffer (current-buffer))
+		  (occur-window (selected-window)))
+	      (when (window-live-p win)
+		(select-window win)
+		(when (and (window-live-p occur-window)
+		           (not (eq occur-window (frame-root-window))))
+		  (delete-window occur-window))
+		(kill-buffer occur-buffer)))))
+        
+        ;; Create a keymap with the simpler return function
+        (let ((map (make-sparse-keymap)))
+          ;; Navigation keys
+          (define-key map (kbd "p") 'previous-line)
+          (define-key map (kbd "n") 'next-line)
+          (define-key map (kbd "q") 'phi-occur-return-to-phi)
+          
+          ;; Apply the keymap
+          (use-local-map map)))
+      
+      ;; Force-deactivate any transient maps before switching
+      (when (fboundp 'reset-this-command-lengths)
+        (reset-this-command-lengths))
+      
+      ;; Display AND switch to the buffer
+      (select-window (display-buffer occur-buf)))))
+      
+      
+;; ========================= Multi Occur **
+
+(defun search-functions-in-buffers ()
+  "Search for function definitions across multiple buffers."
+  (interactive)
+  (let* ((pattern (read-string "Search for function: " "defun "))
+         (buffers (completing-read-multiple 
+                  "Search in buffers (RET for all code buffers): "
+                  (mapcar #'buffer-name (buffer-list))
+                  nil nil nil 'buffer-name-history)))
+    
+    ;; If no buffers selected, use all programming mode buffers
+    (when (string= (car buffers) "")
+      (setq buffers (mapcar #'buffer-name 
+                           (seq-filter (lambda (b) 
+                                       (with-current-buffer b
+                                         (derived-mode-p 'prog-mode)))
+                                     (buffer-list)))))
+    
+    ;; Run multi-occur with the function search pattern
+    (multi-occur (mapcar #'get-buffer buffers) pattern)
+    
+    ;; Optionally customize the occur buffer's keymap for i/o navigation
+    (with-current-buffer "*Occur*"
+      (let ((map (copy-keymap occur-mode-map)))
+        (define-key map (kbd "i") 'previous-line)
+        (define-key map (kbd "o") 'next-line)
+        (use-local-map map)))))
 
 
 ;;=================================================================================================
