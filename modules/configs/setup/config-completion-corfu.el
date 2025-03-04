@@ -152,12 +152,6 @@
 
 ;; Add advice for shell integration and separator handling
 (advice-add #'corfu-insert :after #'corfu-send-shell)
-(advice-add 'corfu-insert-separator :before
-            #'(lambda ()
-                (if (>= corfu--index 0)
-                    (progn
-                      (corfu-complete)
-                      (insert "")))))
 
 ;; In your config-corfu.el
 (advice-add 'corfu-insert-separator :before
@@ -167,5 +161,5 @@
                       (corfu-complete)
                       (insert "")))))
 
-    
+
 (provide 'config-completion-corfu)

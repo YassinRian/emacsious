@@ -1,0 +1,22 @@
+;;; package-configs.el --- Config of Elpaca packages through Use-package -*- lexical-binding: t -*-
+
+;;; Commentary:
+
+;;; Code:
+
+
+(use-package avy
+  :init
+  (setq avy-keys-alist
+	`((avy-goto-char-2			. (?j ?k ?l ?f ?s ?d ?e ?r ?u ?i))
+	  (avy-goto-word-1			. (?j ?k ?l ?f ?s ?d ?e ?r ?u ?i))
+	  (avy-goto-char-in-line	. (?j ?k ?l ?f ?s ?d ?e ?r ?u ?i))
+	  (avy-goto-char-2-above	. (?j ?k ?l ?f ?s ?d ?e ?r ?u ?i))
+	  (avy-goto-char-2-below	. (?j ?k ?l ?f ?s ?d ?e ?r ?u ?i))
+	  (avy-goto-char-timer  	. (?j ?k ?l ?f ?s ?d ?e ?r ?u ?i))
+	  (avy-goto-line			. (?j ?k ?l ?f ?s ?d ?e ?r ?u ?i))))
+  
+  :custom
+  (avy-timeout-seconds 0.3 "The default is too long."))
+
+(provide package-configs.el)

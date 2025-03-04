@@ -10,6 +10,10 @@
 
 ;; ================================================================ Keybindings =======================================
 
+;; ================================================================ Insert Mode Keybindings** 
+
+(define-key my-modal-insert-map (kbd ".") #'hydra-insert-mode/body)
+
 ;; ================================================================ Normal Mode Keybindings**
 
 (define-key my-modal-normal-map (kbd "<remap> <self-insert-command>") #'ignore) ;; ignore other keys
@@ -27,6 +31,8 @@
 (define-key my-modal-normal-map (kbd "p") #'end-of-line)
 (define-key my-modal-normal-map (kbd "<") #'beginning-of-buffer)
 (define-key my-modal-normal-map (kbd ">") #'end-of-buffer)
+(define-key my-modal-normal-map (kbd "/") #'consult-line)
+
 
 (define-key my-modal-normal-map (kbd "v") #'my-modal-enter-insert-mode) ;; Insert mode
 (define-key my-modal-normal-map (kbd "SPC") #'my-modal-enter-visual-mode) ;; Visual mode
@@ -35,6 +41,8 @@
 (define-key my-modal-normal-map (kbd "w") #'start-menu/body) ;; start menu
 (define-key my-modal-normal-map (kbd "g") #'hydra-goto/body) ;; start menu
 
+;; avy
+(define-key my-modal-normal-map (kbd "f") #'avy-goto-char-in-line) ;; start menu
 
 ;; Redo bindings
 (define-key my-modal-normal-map (kbd "r") #'undo-fu-only-undo)
@@ -48,7 +56,11 @@
 (define-key my-modal-normal-map (kbd "M-i") #'scroll-up-command)
 (define-key my-modal-normal-map (kbd "M-o") #'scroll-down-command)
 
- 
+;; Marks
+(define-key my-modal-normal-map (kbd "n") #'my/consult-mark-backward)
+(define-key my-modal-normal-map (kbd "N") #'my/consult-mark-forward)
+(define-key my-modal-normal-map (kbd ":") #'my/push-mark-with-feedback)
+
 ;; =============================================================== Visual Mode Keybindings**
 (define-key my-modal-visual-map (kbd "j") #'boon-smarter-backward)
 (define-key my-modal-visual-map (kbd ";") #'boon-smarter-forward)
@@ -73,7 +85,8 @@
 (define-key my-modal-visual-map (kbd "h") #'my-visual-select-paragraph)
 (define-key my-modal-visual-map (kbd "s") #'my-visual-select-between-spaces)
 (define-key my-modal-visual-map (kbd "SPC") #'my-visual-select-line)
-;;(define-key my-modal-visual-map (kbd "ai") #'visual-between-equal-chars)
+(define-key my-modal-visual-map (kbd "n") #'exchange-point-and-mark)
+
 ;; Bind this wrapper function to ai
 (define-key my-modal-visual-map (kbd "ai") #'visual-between-equal-chars-delete-and-insert)
 (define-key my-modal-visual-map (kbd "aa") #'visual-including-equal-chars)
@@ -90,10 +103,12 @@
 (define-key my-modal-visual-map (kbd "9") #'my-visual-surround-9)
 (define-key my-modal-visual-map (kbd "0") #'my-visual-surround-0)
 
+;; "Text manipulation"
+(define-key my-modal-visual-map (kbd "t") #'hydra-text-manipulation/body)
 
 ;; ============================================================= Yank mode **
-(define-key my-modal-yank-map (kbd "p") #'visual-paste)
 
+(define-key my-modal-yank-map (kbd "p") #'visual-paste)
 
 ;; ============================================================== Delete mode **
 
@@ -145,15 +160,18 @@
 ;; Enable the minor mode when entering dired-mode
 (add-hook 'dired-mode-hook #'my-dired-navigation-mode)
 
+(add-hook 'dired-mode-hook #'nerd-icons-dired-mode)
+
 ;; Disable the minor mode when leaving dired-mode
 (add-hook 'dired-mode-hook 
           (lambda ()
             (add-hook 'change-major-mode-hook
                      (lambda () (my-dired-navigation-mode -1))
                      nil t)))
+                     
 
 ;; =============================================================== Other keybindings **
-
+ 
 ;; ==== viper **
 
 (define-key my-modal-normal-map (kbd ":") #'viper-ex)
@@ -161,6 +179,9 @@
 ;; ===== vertico easy navigation **
 
 (define-key vertico-map (kbd "f") #'hydra-vertico-mode/body)  
+;;(define-key vertico-map (kbd "C-p") #'vertico-directory-up)  
+;;(define-key global-map (kbd "C-p") #'vertico-directory-up)
+
 
 (defun my-activate-vertico-nav ()
   "Activate transient navigation map for vertico."
@@ -170,7 +191,67 @@
     (define-key map (kbd "i") #'previous-line)
     (set-transient-map map t)))
 
-	      
+
+;; Init vertico-directory for directory navigation commands
+(use-package vertico-directory
+  :after vertico
+  :ensure nil
+  :bind
+  (:map vertico-map ("M-<backspace>" . vertico-directory-up))) ;; C-<backspace> doesnt work because of alacritty
+
+;; Init vertico-multiform for per command vertico configuration
+(use-package vertico-multiform
+  :after vertico
+  :ensure nil
+  :config
+  (vertico-multiform-mode))
+
+
+;; ===== corfu easy navigation **
+
+(defun my-corfu-next ()
+  "corfu-next"
+  (interactive)
+  (corfu-next))
+
+(advice-add 'my-corfu-next :after 
+            (lambda (&rest args)
+              (call-interactively 'my-activate-corfu-nav)))
+
+(define-key corfu-map (kbd "TAB") #'my-corfu-next)
+(define-key corfu-map (kbd ";") #'corfu-quick-complete)
+
+;; (defun my-activate-corfu-nav ()
+;;   "Activate transient navigation map for vertico."
+;;   (interactive)
+;;   (let ((map (make-sparse-keymap)))
+;;     (define-key map (kbd "i") #'corfu-previous)
+;;     (define-key map (kbd "o") #'corfu-next)
+;;     (define-key map (kbd ";") #'corfu-quick-complete)
+;;     (set-transient-map map t #'identity)))
+
+(defun my-activate-corfu-nav ()
+  "Activate transient navigation map for corfu with fallback for other keys."
+  (interactive)
+  (let ((map (make-sparse-keymap)))
+    ;; Define your specific keybindings
+    (define-key map (kbd "i") #'corfu-previous)
+    (define-key map (kbd "o") #'corfu-next)
+    (define-key map (kbd ";") #'corfu-quick-complete)
+    
+    ;; Set a default binding for any other key
+    (set-keymap-parent map (make-composed-keymap nil corfu-mode-map))
+    
+    ;; Create a function that handles all other keys by first completing then executing the original command
+    (define-key map [t] (lambda ()
+                          (interactive)
+                          (corfu-complete)
+                          (let ((keys (this-command-keys-vector)))
+                            (setq unread-command-events (listify-key-sequence keys)))))
+    
+    (set-transient-map map t #'identity)))
+
+
 ;; ===== Phi-search **
 
 (define-key phi-search-default-map (kbd "f") #'hydra-phi-mode/body) 
@@ -201,6 +282,11 @@
 (define-key vundo-mode-map (kbd "p") #'vundo-stem-end)
 (define-key vundo-mode-map (kbd "q") #'vundo-quit)
 (define-key vundo-mode-map (kbd "RET") #'vundo-confirm)
+
+
+;; ========================== Global **
+
+(define-key global-map (kbd "C-g") #'prot/keyboard-quit-dwim)
 
 
 ;;================================================================================================== EOF =====================================================================================

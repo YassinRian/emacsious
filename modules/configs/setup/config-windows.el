@@ -5,7 +5,7 @@
 
 ;;; Code:
 
-(require 'hydra)
+(require 'pretty-hydra)
 (require 'windmove)
 (require 'winner)
 
@@ -14,89 +14,58 @@
 
 ;; ========================= Windows Hydra ================================
 
-(defhydra hydra-windows (:hint nil :exit t)
-  "
-  Window Commands
-  ^Navigation^        ^Sizing^           ^Split/Delete^      ^History^
-  ^^^^^^^^-----------------------------------------------------------------
-  _h_: Left          _+_: Enlarge       _v_: Split Vert     _u_: Undo
-  _j_: Down          _-_: Shrink        _s_: Split Horiz    _r_: Redo
-  _k_: Up            _>_: Widen         _d_: Delete         _b_: Balance
-  _l_: Right         _<_: Narrow        _D_: Delete Others  _m_: Maximize
+(pretty-hydra-define hydra-windows (:title "Window Commands" :quit-key "q" :exit t)
+  (
+   
+   ;; Sizing column
+   "Sizing"
+    (("+" enlarge-window "Enlarge" :exit nil)
+      ("-" shrink-window "Shrink" :exit nil)
+      (">" enlarge-window-horizontally "Widen" :exit nil)
+      ("<" shrink-window-horizontally "Narrow" :exit nil)
+      ("=" balance-windows-area "Equal Size")
+      )
+   
+   ;; Split/Delete column
+    "Split/Delete"
+    (("v" split-window-right "Split Vert")
+     ("s" split-window-below "Split Horiz")
+     ("d" delete-window "Delete")
+     ("D" delete-other-windows "Delete Others"))
+   
+   ;; History column
+   "History"
+    (("u" winner-undo "Undo")
+     ("r" winner-redo "Redo")
+     ("b" balance-windows "Balance")
+     ("m" maximize-window "Maximize"))
+   
+   ;; Rotation column
+   "Rotation"
+    (("}" rotate-windows-forward "Rotate Right")
+     ("{" rotate-windows-backward "Rotate Left")
+     ("x" window-swap-states "Swap")
+     ("t" transpose-frame "Transpose"))
+   
+   ;; Jump column
+   "Jump"
+    (
+     ("SPC" other-window "Next window")
+     ("TAB" (lambda () 
+              (interactive) 
+              (select-window (previous-window))) "Cycle window")
+     ("a" ace-window "Ace Jump"))
+   
+   ;; Special column
+   "Bookmark Wins"
+   (
+    ("b" burly-bookmark-windows "Save windows")
+    ("l" burly-open-bookmark "Load window")
+    ("q" nil "Exit" :exit t)
+     )))
+     
   
-  ^Buffers^          ^Rotation^         ^Jump^              ^Special^
-  ^^^^^^^^-----------------------------------------------------------------
-  _f_: Find File     _}_: Rotate Right  _0-9_: Jump to     _w_: Save Layout
-  _B_: Buffer List   _{_: Rotate Left   _SPC_: Next        _L_: Load Layout
-  _p_: Previous      _x_: Swap          _TAB_: Cycle       _=_: Equal Size
-  _n_: Next          _t_: Transpose     _a_: Ace Window    _o_: Only One
-  "
-  ;; Navigation
-  ("h" windmove-left "left")
-  ("j" windmove-down "down")
-  ("k" windmove-up "up")
-  ("l" windmove-right "right")
   
-  ;; Sizing
-  ("+" enlarge-window "enlarge vertical")
-  ("-" shrink-window "shrink vertical")
-  (">" enlarge-window-horizontally "enlarge horizontal")
-  ("<" shrink-window-horizontally "shrink horizontal")
-  
-  ;; Split and Delete
-  ("v" split-window-right "split vertical")
-  ("s" split-window-below "split horizontal")
-  ("d" delete-window "delete window")
-  ("D" delete-other-windows "delete others")
-  
-  ;; History
-  ("u" winner-undo "undo")
-  ("r" winner-redo "redo")
-  ("b" balance-windows "balance")
-  ("m" maximize-window "maximize")
-  
-  ;; Buffer Management
-  ("f" find-file-other-window "find file")
-  ("B" ibuffer-other-window "buffer list")
-  ("p" previous-buffer "previous buffer")
-  ("n" next-buffer "next buffer")
-  
-  ;; Rotation
-  ("}" rotate-windows-forward "rotate forward")
-  ("{" rotate-windows-backward "rotate backward")
-  ("x" window-swap-states "swap windows")
-  ("t" transpose-frame "transpose")
-  
-  ;; Jump
-  ("0" winum-select-window-0-or-10 "window 0")
-  ("1" winum-select-window-1 "window 1")
-  ("2" winum-select-window-2 "window 2")
-  ("3" winum-select-window-3 "window 3")
-  ("4" winum-select-window-4 "window 4")
-  ("5" winum-select-window-5 "window 5")
-  ("6" winum-select-window-6 "window 6")
-  ("7" winum-select-window-7 "window 7")
-  ("8" winum-select-window-8 "window 8")
-  ("9" winum-select-window-9 "window 9")
-  ("SPC" other-window "next window")
-  ("TAB" (lambda () 
-           (interactive) 
-           (select-window (previous-window))) "cycle window")
-  ("a" ace-window "ace jump")
-  
-  ;; Special
-  ("w" window-configuration-to-register "save layout")
-  ("L" jump-to-register "load layout")
-  ("=" balance-windows-area "equal size")
-  ("o" delete-other-windows "only one")
-  
-  ;; Exit
-  ("q" nil "quit" :exit t)
-  ("<escape>" nil nil :exit t))
-
-;; Bind the hydra to your preferred key
-(global-set-key (kbd "C-c w") #'hydra-windows/body)
-
 ;; ========================= Helper Functions ============================
 
 (defun rotate-windows-forward ()
@@ -142,9 +111,19 @@
 
 ;; Ace window for quick window selection
 (use-package ace-window
-  :custom
-  (aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))
-  (aw-background nil))
+  :config (setq
+           aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)
+           aw-scope 'frame
+           aw-background t)
+          (custom-set-faces
+ '(aw-leading-char-face ((t :inherit (bold) 
+                           :height 4.0 
+                           :foreground "red"
+                           :background "gray10"
+                           :box (:line-width -1 :color "gray50" :style released-button)
+                           :weight extra-bold)))) 
+           
+          )
 
 ;; Save window configurations
 (defun save-window-layout (register)
@@ -157,6 +136,20 @@
   "Restore window layout from REGISTER."
   (interactive "cRestore window configuration from register: ")
   (jump-to-register register))
+  
+
+  
+
+  
+;; ============================== activities =================================
+
+(use-package activities
+ :init
+ (activities-mode)
+ ;;(activities-tabs-mode)
+ ;; Prevent `edebug' default bindings from interfering.
+ (setq edebug-inhibit-emacs-lisp-mode-bindings t)
+)
 
 (provide 'config-windows)
 ;;; config-windows.el ends here

@@ -36,6 +36,26 @@
       "\\([a-z0-9]\\)\\([A-Z]\\)" "\\1-\\2"
       (replace-regexp-in-string "[^a-zA-Z0-9]+" "-" s)))))
 
+(defun my/indent-region-or-line (spaces)
+  "Indent region if active, or current line, by SPACES spaces."
+  (interactive "nNumber of spaces: ")
+  (if (use-region-p)
+      (indent-rigidly (region-beginning) (region-end) spaces)
+    (let ((line-beginning (line-beginning-position))
+          (line-end (line-end-position)))
+      (indent-rigidly line-beginning line-end spaces))))
+
+(defun my/indent-right (arg)
+  "Indent region or line right by ARG spaces."
+  (interactive "p")
+  (my/indent-region-or-line arg))
+
+(defun my/indent-left (arg)
+  "Indent region or line left by ARG spaces."
+  (interactive "p")
+  (my/indent-region-or-line (- arg)))
+
+
 ;; Functions to apply transformations to region or word
 (defun my/transform-region-or-word (transform-fn)
   "Apply TRANSFORM-FN to region if active, or word at point."
@@ -50,6 +70,9 @@
       (delete-region (car bounds) (cdr bounds))
       (insert transformed))))
 
+;; ================================ hydra's ====================================
+
+
 ;; Define the hydra
 (pretty-hydra-define hydra-text-manipulation
   (:title "Text Manipulation" :quit-key "q" :color blue)
@@ -59,10 +82,18 @@
     ("c" capitalize-dwim "Capitalize")
     ("m" (lambda () (interactive) (my/transform-region-or-word #'my/camelize)) "camelCase")
     ("p" (lambda () (interactive) (my/transform-region-or-word #'my/pascal-case)) "PascalCase"))
+   
+"Indent"
 
+((">" my-indent-rigidly-right "Indent right" :exit nil)
+ ("<" my-indent-rigidly-left "Indent left" :exit nil))
+   
+   "Move"
+   (("I" drag-stuff-up "Move up" :exit nil)
+    ("O" drag-stuff-down "Move down" :exit nil))
+   
    "Convert"
-   (("s" (lambda () (interactive) (my/transform-region-or-word #'my/snake-case)) "snake_case")
-    ("k" (lambda () (interactive) (my/transform-region-or-word #'my/kebab-case)) "kebab-case")
+   (
     ("w" just-one-space "Single Space")
     ("W" delete-horizontal-space "No Space"))
 
@@ -76,10 +107,10 @@
    (("j" join-line "Join")
     ("S" sort-lines "Sort")
     ("U" delete-duplicate-lines "Unique")
-    ("R" reverse-region "Reverse"))))
+    ("R" reverse-region "Reverse"))
 
-;; Bind the hydra to your preferred key
-(global-set-key (kbd "C-c t") #'hydra-text-manipulation/body)
+   ))
+
 
 (provide 'config-text-manipulation)
 ;;; config-text-manipulation.el ends here

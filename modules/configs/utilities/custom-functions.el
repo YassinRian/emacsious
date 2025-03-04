@@ -29,6 +29,7 @@
   (split-window-horizontally);; een beetje rare term, maar ze bedoelen dat 2 windows horizontaal worden gecreerd
   (other-window 1))
 
+
 ;;--------------------------------------------------------
 ;; kill all buffers except the current one
 ;; =======================================================
@@ -171,11 +172,13 @@
 
 (defun my-split-window-below ()
   (interactive)
-  (split-window-below))
+  (split-window-below)
+  (other-window 1))
 
 (defun my-split-window-right ()
   (interactive)
-  (split-window-right))
+  (split-window-right)
+  (other-window 1))
 
 ;;================== Utility functions =============================
 
@@ -890,13 +893,49 @@ Only prompts for the file name, and creates it in the current directory."
   
 ;; ==================================================== Consult
 
-(defun my/consult-find-sort-by-depth-rg-fast ()
+(defun my/consult-find-sort-by-depth-rg-fast-select ()
   "Run consult-find with ripgrep (with exclusions) and sort results by path depth."
   (interactive)
   (let* ((dir (read-directory-name "Select directory: "))
          (default-directory (if (and dir (file-directory-p dir))
                                dir
                              default-directory))
+         ;; Use ripgrep with common exclusions
+         (rg-results (shell-command-to-string 
+                     "rg --files --hidden --glob '!.git/' --glob '!node_modules/' --glob '!dist/' --glob '!build/'"))
+         ;; Split into lines and sort by depth
+         (sorted-results (sort (split-string rg-results "\n" t)
+                              (lambda (a b)
+                                (< (length (split-string a "/" t))
+                                   (length (split-string b "/" t)))))))
+    ;; Present the sorted results using consult
+    (let ((selection (consult--read
+                     sorted-results
+                     :prompt "Find (rg fast): "
+                     :category 'file
+                     :sort nil
+                     :require-match t
+                     :history 'file-name-history)))
+      (when selection
+        (find-file selection)))))
+
+
+;; new --no need to select easy for finding files in current dir
+
+(defun my/consult-find-sort-by-depth-rg-fast ()
+  "Run consult-find with ripgrep (with exclusions) and sort results by path depth."
+  (interactive)
+  (let* ((file-path (buffer-file-name))
+         (home-dir (expand-file-name "~/"))
+         ;; Get the first level directory below home
+         (first-level-dir 
+          (if file-path
+              (let ((rel-path (file-relative-name file-path home-dir)))
+                (if (string-match "^\\([^/]+\\)/" rel-path)
+                    (expand-file-name (concat home-dir (match-string 1 rel-path)))
+                  home-dir))
+            home-dir))
+         (default-directory first-level-dir)  ; Set to first level directory
          ;; Use ripgrep with common exclusions
          (rg-results (shell-command-to-string 
                      "rg --files --hidden --glob '!.git/' --glob '!node_modules/' --glob '!dist/' --glob '!build/'"))
@@ -957,7 +996,7 @@ Only prompts for the file name, and creates it in the current directory."
   (interactive)
   (let ((completing-read-function #'completing-read-default))
     ;; First, call the original function to get the file
-    (call-interactively #'my/consult-find-sort-by-depth-rg-fast)
+    (call-interactively #'my/consult-find-sort-by-depth-rg-fast-select)
     ;; Now get the most recently visited file (which should be the one just opened)
     (let ((recent-file (buffer-file-name)))
       ;; Restore the buffer we had before finding the file
@@ -970,12 +1009,12 @@ Only prompts for the file name, and creates it in the current directory."
 
 ;; ================================================================ Start Menu function **
 
-(defvar my-hydra-visible t "Whether the hydra menu is visible.")
-
 ;; Define a persistent toggle variable if not already defined
-(defvar my-find-current-window nil
+(defvar my-find-current-window t
   "When non-nil, find files in current window instead of other window.")
-  
+
+;; I am not using this anymore but it could be handy to toggle of the hydra's
+(defvar my-hydra-visible t "Whether the hydra menu is visible.")
 
 (defun toggle-hydra-visibility ()
   "Toggle visibility of hydra hints."
@@ -1111,6 +1150,88 @@ Only prompts for the file name, and creates it in the current directory."
         (define-key map (kbd "i") 'previous-line)
         (define-key map (kbd "o") 'next-line)
         (use-local-map map)))))
+
+
+;; =========================== Prot keyboard-quit **
+
+(defun prot/keyboard-quit-dwim ()
+  "Do-What-I-Mean behaviour for a general `keyboard-quit'.
+
+The generic `keyboard-quit' does not do the expected thing when
+the minibuffer is open.  Whereas we want it to close the
+minibuffer, even without explicitly focusing it.
+
+The DWIM behaviour of this command is as follows:
+
+- When the region is active, disable it.
+- When a minibuffer is open, but not focused, close the minibuffer.
+- When the Completions buffer is selected, close it.
+- In every other case use the regular `keyboard-quit'."
+  (interactive)
+  (cond
+   ((region-active-p)
+    (keyboard-quit))
+   ((derived-mode-p 'completion-list-mode)
+    (delete-completion-window))
+   ((> (minibuffer-depth) 0)
+    (abort-recursive-edit))
+   (t
+    (keyboard-quit))))
+
+;; Marks functions
+
+
+(defun my/consult-mark-forward ()
+  "Jump to the next mark in the local mark ring."
+  (interactive)
+  (let ((current-prefix-arg '(4)))
+    (call-interactively 'set-mark-command)))
+
+(defun my/consult-mark-backward ()
+  "Jump to the previous mark in the local mark ring."
+  (interactive)
+  (let ((current-prefix-arg '(-4)))  ;; Negative prefix to go backward
+    (call-interactively 'set-mark-command)))
+
+(defun my/push-mark-with-feedback ()
+  "Push mark at point and display a message."
+  (interactive)
+  (push-mark nil t)
+  (message "Mark set (position %s)" (point)))
+
+(defun my/swap-point-and-mark ()
+  "Swap point and mark without activating the region."
+  (interactive)
+  (let ((mark-active nil))
+    (exchange-point-and-mark)))
+
+(defun my/exchange-point-and-mark ()
+  "Swap point and mark without activating the region."
+  (interactive)
+  (exchange-point-and-mark)
+    (my-modal-enter-visual-mode))
+
+(defun my/mark-whole-buffer-keep-position ()
+  "Mark the whole buffer and return to original position."
+  (interactive)
+  (let ((current-point (point)))
+    (push-mark (point-min))
+    (goto-char (point-max))
+    (activate-mark)
+    (goto-char current-point)
+    (my-modal-enter-visual-mode)))
+
+;; Register-based mark functions
+(defun my/quick-mark-set (arg)
+  "Set a mark in register 0-9."
+  (interactive "cSet mark in register (0-9): ")
+  (point-to-register arg)
+  (message "Mark set in register '%c'" arg))
+
+(defun my/quick-mark-jump (arg)
+  "Jump to mark in register 0-9."
+  (interactive "cJump to register (0-9): ")
+  (jump-to-register arg))
 
 
 ;;=================================================================================================

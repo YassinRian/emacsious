@@ -185,20 +185,36 @@
 
 ;; ========================= Font Configuration ==========================
 
-;; Set default font
+;; ;; Set default font
+;; (set-face-attribute 'default nil 
+;;                     :family "JetBrainsMono Nerd Font" 
+;;                     :height 120 
+;;                     :weight 'regular)
+                    
+;; ;; Fixed and variable pitch fonts
+;; (set-face-attribute 'fixed-pitch nil 
+;;                     :family "JetBrainsMono Nerd Font"
+;;                     :height 120)
+;; (set-face-attribute 'variable-pitch nil 
+;;                     :family "Cantarell" 
+;;                     :height 120
+;;                     :weight 'regular)
+
+;; works only in the GUI
 (set-face-attribute 'default nil 
-                    :family "JetBrainsMono Nerd Font" 
+                    :family "Iosevka Nerd Font" 
                     :height 120 
                     :weight 'regular)
                     
 ;; Fixed and variable pitch fonts
 (set-face-attribute 'fixed-pitch nil 
-                    :family "JetBrainsMono Nerd Font"
+                    :family "Iosevka Nerd Font"
                     :height 120)
 (set-face-attribute 'variable-pitch nil 
                     :family "Cantarell" 
                     :height 120
                     :weight 'regular)
+
 
 ;; Enable ligatures for programming
 (ligature-set-ligatures 't '("www" "**" "***" "**/" "*>" "*/" "\\\\" "\\\\\\"

@@ -19,16 +19,24 @@
 ;; Themes and Modeline
 (elpaca ef-themes)
 
+
+;; Navigation
+(elpaca avy)
+
 ;; Icons and Fonts
 (elpaca all-the-icons)      ;; Icons for files and buffers
 (elpaca nerd-icons)         ;; Nerd fonts icons
 (elpaca kind-icon)
 (elpaca svg-lib)
 (elpaca nerd-icons-corfu)
+(elpaca nerd-icons-dired)
+(elpaca nerd-icons-completion)
 
 ;; Window Management
-(elpaca centaur-tabs)       ;; Tab bar for buffers
-(elpaca popper)             ;; Pop-up management for Emacs
+(elpaca winum)
+(elpaca ace-window)
+(elpaca activities)
+(elpaca burly)
 
 ;; Smooth Scrolling
 (elpaca good-scroll)        ;; Smooth scrolling for Emacs
@@ -88,6 +96,7 @@
 (elpaca orderless)
 (elpaca cape)
 (elpaca corfu-terminal)
+;;(elpaca corfu-quick)
 
 ;; vertico
 (elpaca vertico)
@@ -134,10 +143,9 @@
 (require 'config-vertico)
 (require 'config-search)
 (require 'config-dired)
-(require 'config-buffers)
-(require 'pretty-hydras)
-
-
+(require 'config-windows)
+(require 'config-marks)
+(require 'config-text-manipulation)
 
 
 

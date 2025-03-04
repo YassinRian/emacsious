@@ -63,6 +63,11 @@
 ;; Key binding for cycling annotations
 (define-key minibuffer-local-map (kbd "M-A") #'marginalia-cycle)
 
+(use-package nerd-icons-completion
+  :after marginalia
+  :config
+  (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup))
+
 ;; ========================= Orderless Configuration ==========================
 
 ;; Helper functions for pattern matching
