@@ -96,7 +96,7 @@
 (elpaca orderless)
 (elpaca cape)
 (elpaca corfu-terminal)
-;;(elpaca corfu-quick)
+
 
 ;; vertico
 (elpaca vertico)
@@ -112,6 +112,7 @@
 (elpaca python-pytest)
 (elpaca poetry)
 (elpaca projectile)
+(elpaca flycheck)
 
 ;; Viper
 (autoload 'viper-ex "viper")
@@ -135,7 +136,7 @@
 
 
 ;; Only loading what is needed at startup, other packages are required where they are needed (see other files)
-
+(require 'config-packages)
 (require 'config-ui)
 (require 'config-scroll)
 (require 'config-completion-corfu)

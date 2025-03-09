@@ -12,7 +12,7 @@
 
 ;; ================================================================ Insert Mode Keybindings** 
 
-(define-key my-modal-insert-map (kbd ".") #'hydra-insert-mode/body)
+(define-key my-modal-insert-map (kbd ";") #'hydra-insert-mode/body)
 
 ;; ================================================================ Normal Mode Keybindings**
 
@@ -32,9 +32,15 @@
 (define-key my-modal-normal-map (kbd "<") #'beginning-of-buffer)
 (define-key my-modal-normal-map (kbd ">") #'end-of-buffer)
 (define-key my-modal-normal-map (kbd "/") #'consult-line)
-
-
-(define-key my-modal-normal-map (kbd "v") #'my-modal-enter-insert-mode) ;; Insert mode
+(define-key my-modal-normal-map (kbd "v") ;; insert mode 
+  (lambda () 
+    (interactive)
+    (my/push-mark-with-feedback)
+    (my-modal-enter-insert-mode)
+    ;; Check if we're in eshell mode and activate the appropriate map
+    (when (eq major-mode 'eshell-mode)
+      (my-modal-eshell-activate-map))))
+;;(define-key my-modal-normal-map (kbd "v") #'my-modal-enter-insert-mode) ;; Insert mode
 (define-key my-modal-normal-map (kbd "SPC") #'my-modal-enter-visual-mode) ;; Visual mode
 (define-key my-modal-normal-map (kbd "c") #'my-modal-enter-yank-mode)
 (define-key my-modal-normal-map (kbd "d") #'my-modal-enter-delete-mode)
@@ -144,6 +150,7 @@
 
 
 ;; =============================================================== Switching to Normal Mode **
+
 (global-set-key (kbd "f") 'hydra-change-mode/body)
 
 ;; =============================================================== Dired Mode **
@@ -209,6 +216,9 @@
 
 ;; ===== corfu easy navigation **
 
+(define-key corfu-map (kbd ";") #'my-corfu-next)
+(define-key corfu-map (kbd "SPC") #'corfu-insert-separator)
+
 (defun my-corfu-next ()
   "corfu-next"
   (interactive)
@@ -218,17 +228,15 @@
             (lambda (&rest args)
               (call-interactively 'my-activate-corfu-nav)))
 
-(define-key corfu-map (kbd "TAB") #'my-corfu-next)
-(define-key corfu-map (kbd ";") #'corfu-quick-complete)
-
-;; (defun my-activate-corfu-nav ()
-;;   "Activate transient navigation map for vertico."
-;;   (interactive)
-;;   (let ((map (make-sparse-keymap)))
-;;     (define-key map (kbd "i") #'corfu-previous)
-;;     (define-key map (kbd "o") #'corfu-next)
-;;     (define-key map (kbd ";") #'corfu-quick-complete)
-;;     (set-transient-map map t #'identity)))
+(advice-add 'corfu-quick-complete :around
+            (lambda (orig-fun &rest args)
+              (let ((result (apply orig-fun args)))
+                ;; Quit Corfu
+                (corfu-quit)
+                ;; Ensure the transient map from my-activate-corfu-nav is removed
+                ;; This effectively deactivates the function by removing its keymap
+                (set-transient-map nil)
+                result)))
 
 (defun my-activate-corfu-nav ()
   "Activate transient navigation map for corfu with fallback for other keys."
@@ -237,7 +245,6 @@
     ;; Define your specific keybindings
     (define-key map (kbd "i") #'corfu-previous)
     (define-key map (kbd "o") #'corfu-next)
-    (define-key map (kbd ";") #'corfu-quick-complete)
     
     ;; Set a default binding for any other key
     (set-keymap-parent map (make-composed-keymap nil corfu-mode-map))
@@ -287,6 +294,43 @@
 ;; ========================== Global **
 
 (define-key global-map (kbd "C-g") #'prot/keyboard-quit-dwim)
+
+;; =========================== Eshell **
+(require 'eshell)
+(require 'em-prompt)
+
+;; Simple function to activate eshell-mode-map in insert mode
+(defun my-modal-eshell-activate-map ()
+  "Activate eshell-mode-map when in insert mode."
+  (when (and (eq major-mode 'eshell-mode)
+             (eq my-modal-state 'insert))
+    (use-local-map eshell-mode-map)
+    ;; Add keybinding to enter normal mode
+    (local-set-key (kbd "f") 'hydra-eshell-mode/body)))
+    
+
+;; Add hook to modal state change
+(add-hook 'my-modal-state-change-hook 'my-modal-eshell-activate-map)
+
+;; More robust eshell mode startup handling
+(defun my-modal-eshell-mode-setup ()
+  "Set up insert mode and correct keymap for eshell."
+  ;; Ensure we're in eshell mode
+  (when (eq major-mode 'eshell-mode)
+    ;; Give a small delay to ensure eshell is fully initialized
+    (run-with-timer 0.1 nil
+                   (lambda ()
+                     ;; Force insert mode
+                     (my-modal-enter-insert-mode)
+                     ;; Activate eshell map
+                     (use-local-map eshell-mode-map)
+                     ;; Add escape binding
+                     (local-set-key (kbd "f") 'hydra-eshell-mode/body)))))
+
+;; Add to both hooks for better coverage
+(add-hook 'eshell-mode-hook 'my-modal-eshell-mode-setup)
+(with-eval-after-load 'eshell
+  (add-hook 'eshell-first-time-mode-hook 'my-modal-eshell-mode-setup))
 
 
 ;;================================================================================================== EOF =====================================================================================

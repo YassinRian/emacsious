@@ -922,20 +922,61 @@ Only prompts for the file name, and creates it in the current directory."
 
 ;; new --no need to select easy for finding files in current dir
 
+;; (defun my/consult-find-sort-by-depth-rg-fast ()
+;;   "Run consult-find with ripgrep (with exclusions) and sort results by path depth."
+;;   (interactive)
+;;   (let* ((file-path (buffer-file-name))
+;;          (home-dir (expand-file-name "~/"))
+;;          ;; Get the first level directory below home
+;;          (first-level-dir 
+;;           (if file-path
+;;               (let ((rel-path (file-relative-name file-path home-dir)))
+;;                 (if (string-match "^\\([^/]+\\)/" rel-path)
+;;                     (expand-file-name (concat home-dir (match-string 1 rel-path)))
+;;                   home-dir))
+;;             home-dir))
+;;          (default-directory first-level-dir)  ; Set to first level directory
+;;          ;; Use ripgrep with common exclusions
+;;          (rg-results (shell-command-to-string 
+;;                      "rg --files --hidden --glob '!.git/' --glob '!node_modules/' --glob '!dist/' --glob '!build/'"))
+;;          ;; Split into lines and sort by depth
+;;          (sorted-results (sort (split-string rg-results "\n" t)
+;;                               (lambda (a b)
+;;                                 (< (length (split-string a "/" t))
+;;                                    (length (split-string b "/" t)))))))
+;;     ;; Present the sorted results using consult
+;;     (let ((selection (consult--read
+;;                      sorted-results
+;;                      :prompt "Find (rg fast): "
+;;                      :category 'file
+;;                      :sort nil
+;;                      :require-match t
+;;                      :history 'file-name-history)))
+;;       (when selection
+;;         (find-file selection)))))
+
+
+;; Define a variable to store the custom directory
+(defvar my/consult-find-custom-dir nil
+  "Custom directory for my/consult-find-sort-by-depth-rg-fast to use.")
+
 (defun my/consult-find-sort-by-depth-rg-fast ()
-  "Run consult-find with ripgrep (with exclusions) and sort results by path depth."
+  "Run consult-find with ripgrep (with exclusions) and sort results by path depth.
+Uses my/consult-find-custom-dir if set."
   (interactive)
   (let* ((file-path (buffer-file-name))
          (home-dir (expand-file-name "~/"))
-         ;; Get the first level directory below home
+         ;; Get the first level directory below home or use custom-dir if set
          (first-level-dir 
-          (if file-path
-              (let ((rel-path (file-relative-name file-path home-dir)))
-                (if (string-match "^\\([^/]+\\)/" rel-path)
-                    (expand-file-name (concat home-dir (match-string 1 rel-path)))
-                  home-dir))
-            home-dir))
-         (default-directory first-level-dir)  ; Set to first level directory
+          (cond
+           (my/consult-find-custom-dir my/consult-find-custom-dir)  ; Use stored custom directory if set
+           (file-path
+            (let ((rel-path (file-relative-name file-path home-dir)))
+              (if (string-match "^\\([^/]+\\)/" rel-path)
+                  (expand-file-name (concat home-dir (match-string 1 rel-path)))
+                home-dir)))
+           (t home-dir)))
+         (default-directory first-level-dir)  ; Set to first level or custom directory
          ;; Use ripgrep with common exclusions
          (rg-results (shell-command-to-string 
                      "rg --files --hidden --glob '!.git/' --glob '!node_modules/' --glob '!dist/' --glob '!build/'"))
@@ -954,7 +995,25 @@ Only prompts for the file name, and creates it in the current directory."
                      :history 'file-name-history)))
       (when selection
         (find-file selection)))))
-        
+
+(defun my/set-consult-find-dir-with-consult ()
+  "Set the custom directory for my/consult-find-sort-by-depth-rg-fast using consult-dir."
+  (interactive)
+  (require 'consult-dir)
+  (let ((dir (consult-dir--pick "Set search directory: ")))
+    (when dir
+      (setq my/consult-find-custom-dir dir)
+      (message "Search directory set to: %s" dir))))
+
+(defun my/reset-consult-find-dir ()
+  "Reset the custom directory for my/consult-find-sort-by-depth-rg-fast."
+  (interactive)
+  (setq my/consult-find-custom-dir nil)
+  (message "Search directory reset to default"))
+
+
+
+
 
 (defun my/consult-dir-then-find-by-depth-rg ()
   "First select a directory with consult-dir, then find files sorted by path depth using ripgrep."

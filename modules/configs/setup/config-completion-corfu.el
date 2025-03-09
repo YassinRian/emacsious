@@ -70,15 +70,15 @@
     (comint-send-input))))
 
 ;; Key bindings
-(define-key corfu-map (kbd "SPC") #'corfu-insert-separator)
-(define-key corfu-map (kbd "TAB") #'corfu-next)
-(define-key corfu-map [tab] #'corfu-next)
-(define-key corfu-map (kbd "RET") nil)
-(define-key corfu-map [remap next-line] nil)
-(define-key corfu-map [remap previous-line] nil)
-(define-key corfu-map (kbd "C-l") #'corfu-next)
-(define-key corfu-map (kbd "C-k") #'corfu-previous)
-(define-key corfu-map (kbd "C-;") #'corfu-quick-complete)
+
+;; (define-key corfu-map (kbd "TAB") #'corfu-next)
+;; (define-key corfu-map [tab] #'corfu-next)
+;; (define-key corfu-map (kbd "RET") nil)
+;; (define-key corfu-map [remap next-line] nil)
+;; (define-key corfu-map [remap previous-line] nil)
+;; (define-key corfu-map (kbd "C-l") #'corfu-next)
+;; (define-key corfu-map (kbd "C-k") #'corfu-previous)
+;; (define-key corfu-map (kbd "C-;") #'corfu-quick-complete)
 
 ;; Ensure proper icon display in terminal
 (setq corfu-terminal-mode t)  ; Enable terminal support
@@ -159,7 +159,7 @@
                 (if (>= corfu--index 0)
                     (progn
                       (corfu-complete)
-                      (insert "")))))
+                      (forward-char)))))
 
 
 (provide 'config-completion-corfu)

@@ -51,7 +51,7 @@
 
 ;; Define buffers where we want insert mode
 (defvar my-modal-insert-buffers
-  '("*shell*" "*terminal*" "*eshell*" "*vterm*")
+  '("*shell*" "*terminal*" "*vterm*")
   "List of buffer names where we want insert mode.")
 
 (defun my-modal-should-use-insert-p ()
@@ -115,10 +115,10 @@
   (remove-hook 'post-command-hook #'my-modal-check-visual-state t)
   (setq my-modal-state 'insert)
   (my-modal-set-cursor 'bar (face-background 'my-modal-insert-cursor))
-  (unless (my-modal-should-use-insert-p)
-    (use-local-map my-modal-insert-map)
-   (run-hooks 'my-modal-state-change-hook)  ; Add this line
-   (force-mode-line-update t)))
+  ;; my-modal-should-use-insert-p
+  (use-local-map my-modal-insert-map)
+  (run-hooks 'my-modal-state-change-hook)  ; Add this line
+  (force-mode-line-update t))
 
 (defun my-modal-enter-visual-mode ()
   "Enter visual mode."
@@ -178,7 +178,6 @@
 
 ;; Replace your current hook with this
 (add-hook 'after-change-major-mode-hook #'my-modal-setup-for-buffer)
-
 
 
 ;;======================================================================= EOF ===========================================================

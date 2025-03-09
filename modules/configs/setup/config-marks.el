@@ -34,7 +34,7 @@
     (exchange-point-and-mark)))
 
 (defun my/exchange-point-and-mark ()
-  "Swap point and mark without activating the region."
+  "Swap point and mark with activating the region."
   (interactive)
   (exchange-point-and-mark)
     (my-modal-enter-visual-mode))

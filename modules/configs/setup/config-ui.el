@@ -327,6 +327,7 @@
 (add-hook 'after-init-hook #'my-set-window-divider)
 
 
+;; ========================================================== EOF ================================================
 
 (provide 'config-ui)
 ;;; config-ui.el ends here

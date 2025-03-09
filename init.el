@@ -74,6 +74,7 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(aw-leading-char-face ((t :inherit (bold) :height 4.0 :foreground "red" :background "gray10" :box (:line-width -1 :color "gray50" :style released-button) :weight extra-bold)))
  '(bm-face ((t (:background "#3d4451" :extend t))))
  '(bm-fringe-face ((t (:background "#bd93f9" :foreground "#bd93f9"))))
  '(marginalia-date ((t (:foreground "#00a972"))))

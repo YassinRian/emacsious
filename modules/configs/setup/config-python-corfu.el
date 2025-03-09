@@ -112,5 +112,6 @@
 ;; Format on save with black
 (setq python-black-command "black"
       python-black-extra-args '("--line-length" "88"))
+      
 
 (provide 'config-python-corfu)
