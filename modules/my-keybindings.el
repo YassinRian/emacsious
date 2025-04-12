@@ -12,7 +12,11 @@
 
 ;; ================================================================ Insert Mode Keybindings** 
 
-(define-key my-modal-insert-map (kbd ";") #'hydra-insert-mode/body)
+
+;; Make ; move forward one character in your modal map
+;;(define-key my-modal-insert-map (kbd ";") #'forward-char)
+
+(define-key my-modal-insert-map (kbd ";") 'smart-semicolon)
 
 ;; ================================================================ Normal Mode Keybindings**
 
@@ -42,7 +46,7 @@
       (my-modal-eshell-activate-map))))
 ;;(define-key my-modal-normal-map (kbd "v") #'my-modal-enter-insert-mode) ;; Insert mode
 (define-key my-modal-normal-map (kbd "SPC") #'my-modal-enter-visual-mode) ;; Visual mode
-(define-key my-modal-normal-map (kbd "c") #'my-modal-enter-yank-mode)
+(define-key my-modal-normal-map (kbd "c") #'my-modal-enter-c-mode)
 (define-key my-modal-normal-map (kbd "d") #'my-modal-enter-delete-mode)
 (define-key my-modal-normal-map (kbd "w") #'start-menu/body) ;; start menu
 (define-key my-modal-normal-map (kbd "g") #'hydra-goto/body) ;; start menu
@@ -89,12 +93,12 @@
 ;; select
 (define-key my-modal-visual-map (kbd "w") #'my-visual-select-word)
 (define-key my-modal-visual-map (kbd "h") #'my-visual-select-paragraph)
-(define-key my-modal-visual-map (kbd "s") #'my-visual-select-between-spaces)
+(define-key my-modal-visual-map (kbd "s") #'smart-select-string)
 (define-key my-modal-visual-map (kbd "SPC") #'my-visual-select-line)
 (define-key my-modal-visual-map (kbd "n") #'exchange-point-and-mark)
 
 ;; Bind this wrapper function to ai
-(define-key my-modal-visual-map (kbd "ai") #'visual-between-equal-chars-delete-and-insert)
+(define-key my-modal-visual-map (kbd "ai") #'visual-between-equal-chars)
 (define-key my-modal-visual-map (kbd "aa") #'visual-including-equal-chars)
 
 ;; "Add surrounding keybindings to visual mode."
@@ -112,9 +116,10 @@
 ;; "Text manipulation"
 (define-key my-modal-visual-map (kbd "t") #'hydra-text-manipulation/body)
 
-;; ============================================================= Yank mode **
+;; ============================================================= C mode **
 
-(define-key my-modal-yank-map (kbd "p") #'visual-paste)
+(define-key my-modal-c-map (kbd "p") #'visual-paste)
+(define-key my-modal-c-map (kbd "e") 'emmet-expand-line)
 
 ;; ============================================================== Delete mode **
 
@@ -140,20 +145,12 @@
     (kill-whole-line)
     (my-modal-enter-normal-mode)))
 
-;; ============================================================== Menu1 mode **
-
-;; Add at least one binding or an escape hatch
-;;(define-key my-modal-menu1-map (kbd "<remap> <self-insert-command>") #'ignore) ;; ignore other keys
-;;(define-key my-modal-menu1-map (kbd "<escape>") #'my-modal-enter-normal-mode)
-;;(define-key my-modal-menu1-map (kbd "s") #'hydra-search/body)
-;;(define-key my-modal-menu1-map (kbd "SPC") #'hydra-buffers/body)
-
-
 ;; =============================================================== Switching to Normal Mode **
 
 (global-set-key (kbd "f") 'hydra-change-mode/body)
 
 ;; =============================================================== Dired Mode **
+
 (define-minor-mode my-dired-navigation-mode
   "Minor mode for custom dired navigation."
   :keymap (let ((map (make-sparse-keymap)))

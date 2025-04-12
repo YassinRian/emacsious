@@ -5,7 +5,7 @@
 (require 'hydra)
 (require 'pretty-hydra)
 (require 'phi-search)
-
+(require 'config-snippets)
 
 ;; ======================== help functions
 
@@ -85,6 +85,7 @@ TIMEOUT is the time to wait before timing out."
 
 (defhydra hydra-change-mode (:color blue :body-pre (insert "f") :idle 1.0 :timeout 0.5)
   ("d" (progn (delete-char -1)
+	      (corfu-quit)
 	     (my-modal-enter-normal-mode))))
    
 ;; ====================== start menu **
@@ -128,6 +129,7 @@ TIMEOUT is the time to wait before timing out."
     ("w" hydra-windows/body "Files & Windows") ;; see config-buffers
     ("M" mark-management-hydra/body "Mark funcs")
     ("T" hydra-text-manipulation/body "Text")
+    ("." hydra-snippets/body "Snippets")
     )
    
   ))

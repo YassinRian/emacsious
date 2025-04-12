@@ -202,18 +202,18 @@
 
 ;; works only in the GUI
 (set-face-attribute 'default nil 
-                    :family "Iosevka Nerd Font" 
+                    :family "IosevkaTerm Nerd Font" 
                     :height 120 
                     :weight 'regular)
                     
 ;; Fixed and variable pitch fonts
 (set-face-attribute 'fixed-pitch nil 
-                    :family "Iosevka Nerd Font"
+                    :family "IosevkaTerm Nerd Font"
                     :height 120)
-(set-face-attribute 'variable-pitch nil 
-                    :family "Cantarell" 
-                    :height 120
-                    :weight 'regular)
+;; (set-face-attribute 'variable-pitch nil 
+;;                     :family "Cantarell" 
+;;                     :height 120
+;;                     :weight 'regular)
 
 
 ;; Enable ligatures for programming

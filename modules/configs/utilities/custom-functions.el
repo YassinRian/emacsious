@@ -1292,6 +1292,143 @@ The DWIM behaviour of this command is as follows:
   (interactive "cJump to register (0-9): ")
   (jump-to-register arg))
 
+(defun show-current-mode ()
+  "Show the current major mode in the minibuffer."
+  (interactive)
+  (message "Current major mode is: %s" major-mode))
+  
+  
+(defun smart-select-string ()
+  "Intelligently select text between delimiters or select identifiers.
+Handles various pairs like quotes, parentheses, brackets, etc.
+Also recognizes identifiers with hyphens, underscores, asterisks, etc."
+  (interactive)
+  (let* ((pairs '(("\"" . "\"")
+                  ("'" . "'")
+                  ("(" . ")")
+                  ("[" . "]")
+                  ("{" . "}")
+                  ("<" . ">")))
+         (word-chars "a-zA-Z0-9")
+         (connector-chars "-_*#@&+.")  ;; Common connector characters in identifiers
+         (word-regexp (concat "[" word-chars "]"))
+         (connector-regexp (concat "[" connector-chars "]"))
+         (identifier-char-regexp (concat "[" word-chars connector-chars "]"))
+         (syntax-char (char-syntax (following-char)))
+         start end)
+    
+    (cond
+     ;; Inside string or comment
+     ((memq syntax-char '(?\" ?_ ?<))
+      (let ((state (syntax-ppss)))
+        (when (nth 8 state) ; Inside string or comment
+          (setq start (nth 8 state)
+                end (progn
+                      (parse-partial-sexp (point) (point-max) nil nil state 'syntax-table)
+                      (point)))
+          (goto-char start)
+          (set-mark end))))
+     
+     ;; Try to match pairs
+     ((let ((found nil))
+        (dolist (pair pairs found)
+          (save-excursion
+            (when (or (looking-at (regexp-quote (car pair)))
+                      (and (not (bobp)) 
+                           (save-excursion
+                             (backward-char 1)
+                             (looking-at (regexp-quote (car pair))))))
+              ;; At opening delimiter
+              (when (looking-back (regexp-quote (car pair)) 1)
+                (backward-char 1))
+              (setq start (point))
+              (forward-sexp 1)
+              (setq end (point))
+              (goto-char start)
+              (set-mark end)
+              (setq found t)))))
+      found)
+     
+     ;; Handle complex identifiers (with hyphens, underscores, asterisks, etc.)
+     (t
+      ;; First, check if we're on an identifier character
+      (when (or (looking-at identifier-char-regexp)
+                (and (not (bobp))
+                     (save-excursion 
+                       (backward-char 1)
+                       (looking-at identifier-char-regexp))))
+        ;; If we're not directly on an identifier character, move back
+        (when (not (looking-at identifier-char-regexp))
+          (backward-char 1))
+          
+        ;; Move to the beginning of the identifier
+        (skip-chars-backward (concat word-chars connector-chars))
+        (setq start (point))
+          
+        ;; Move to the end of the identifier
+        (skip-chars-forward (concat word-chars connector-chars))
+        (setq end (point))
+          
+        ;; Select the entire identifier
+        (goto-char start)
+        (set-mark end))))))
+        
+        
+
+;; smart-semicolon
+
+(defun smart-semicolon ()
+  "Context-sensitive semicolon:
+   - When between delimiters on same line within 10 chars, act as forward-char
+   - Otherwise, insert a semicolon"
+  (interactive)
+  (let* ((pairs '(("\"" . "\"")
+                  ("'" . "'")
+                  ("(" . ")")
+                  ("[" . "]")
+                  ("{" . "}")
+                  ("<" . ">")))
+         (max-distance 10)
+         (current-point (point))
+         (line-start (line-beginning-position))
+         (line-end (line-end-position))
+         (next-char (when (< current-point line-end) 
+                      (char-to-string (char-after))))
+         (prev-char (when (> current-point line-start)
+                      (save-excursion
+                        (backward-char 1)
+                        (char-to-string (char-after)))))
+         (between-delimiters nil))
+    
+    ;; Simple case: Empty delimiters like "(|)" where | is cursor
+    (when (and prev-char next-char)
+      (dolist (pair pairs)
+        (when (and (string= prev-char (car pair))
+                   (string= next-char (cdr pair)))
+          (setq between-delimiters t))))
+    
+    ;; More complex case: Check if within delimiters with content
+    (unless between-delimiters
+      (save-excursion
+        (dolist (pair pairs)
+          ;; Look backward for opening delimiter
+          (let ((start-search (max line-start (- current-point max-distance))))
+            (goto-char current-point)
+            (when (search-backward (car pair) start-search t)
+              (let ((open-pos (point)))
+                ;; Found opening, now look forward for closing
+                (goto-char current-point)
+                (let ((end-search (min line-end (+ current-point max-distance))))
+                  (when (search-forward (cdr pair) end-search t)
+                    ;; Check if our original position is between these delimiters
+                    (when (and (> current-point open-pos)
+                               (< current-point (point)))
+                      (setq between-delimiters t))))))))))
+    
+    ;; Execute appropriate action
+    (if between-delimiters
+        (forward-char)
+      (insert ";"))))
 
 ;;=================================================================================================
 (provide 'custom-functions)

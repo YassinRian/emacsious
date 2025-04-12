@@ -18,7 +18,7 @@
       corfu-quit-no-match t
       corfu-on-exact-match 'quit
       corfu-auto-delay 0
-      corfu-auto-prefix 2
+      corfu-auto-prefix 1
       corfu-popupinfo-delay '(0.5 . 0.2)
       corfu-preselect 'prompt
       corfu-margin-specs         ; Add more padding
@@ -160,6 +160,42 @@
                     (progn
                       (corfu-complete)
                       (forward-char)))))
+
+
+(defun my/emmet-completions ()
+  "Get completions from emmet for corfu with single character support."
+  (when (and (bound-and-true-p emmet-mode)
+             (or (derived-mode-p 'html-mode)
+                 (derived-mode-p 'css-mode)
+                 (derived-mode-p 'web-mode)
+                 (derived-mode-p 'sgml-mode)))
+    ;; Check if we're at a word boundary or after a tag opener
+    (let* ((bounds (bounds-of-thing-at-point 'symbol))
+           (start (or (car bounds) (point)))
+           (prefix (buffer-substring-no-properties start (point)))
+           ;; If there's no prefix, look at previous character for context
+           (context (if (string= prefix "")
+                       (if (> (point) 1)
+                           (buffer-substring-no-properties (1- (point)) (point))
+                         "")
+                     ""))
+           ;; Include even single-character prefixes
+           (abbrev prefix))
+      (when (or (not (string= abbrev "")) 
+                (string= context "<"))  ; Support completions after < character
+        (let ((expansions (emmet-transform-suggestion abbrev)))
+          (when expansions
+            (list
+             start
+             (point)
+             (mapcar (lambda (expansion)
+                      (propertize expansion 'annotation "emmet"))
+                    expansions)
+             :exclusive 'no
+             :annotation-function (lambda (_) " emmet"))))))))
+
+;; Make it high priority
+(add-hook 'completion-at-point-functions #'my/emmet-completions 0 t)
 
 
 (provide 'config-completion-corfu)

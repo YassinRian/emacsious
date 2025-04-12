@@ -114,6 +114,15 @@
 (elpaca projectile)
 (elpaca flycheck)
 
+;; Js stuff
+(elpaca svelte-mode)
+(elpaca js2-mode)
+(elpaca typescript-mode)
+(elpaca json-mode)
+(elpaca web-mode)
+(elpaca prettier-js)
+(elpaca emmet-mode)
+
 ;; Viper
 (autoload 'viper-ex "viper")
 
@@ -130,14 +139,14 @@
 ;; ======================================= Load custom configurations =================================
 ;; loaded after the elpaca packages
 
-(add-to-list 'load-path (expand-file-name "modules/configs/utilities" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "modules/configs/downloaded_packages" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "modules/configs/utilities" user-emacs-directory))
 (add-to-list 'load-path (expand-file-name "modules/configs/setup" user-emacs-directory))
 
 
 ;; Only loading what is needed at startup, other packages are required where they are needed (see other files)
-(require 'config-packages)
 (require 'config-ui)
+(require 'config-packages)
 (require 'config-scroll)
 (require 'config-completion-corfu)
 (require 'config-python-corfu)

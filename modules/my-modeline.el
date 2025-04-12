@@ -69,7 +69,7 @@
       ('normal (propertize " ⚡ Normal " 'face 'my-modeline-normal))
       ('visual (propertize " 👁  Visual " 'face 'my-modeline-visual))
       ('insert (propertize " ✎  Insert " 'face 'my-modeline-insert))
-      ('yank   (propertize " ⎘  Yank " 'face 'my-modeline-normal))
+      ('c-mode   (propertize " ⎘  C-mode " 'face 'my-modeline-normal))
       ('delete (propertize " ⌦  Delete " 'face 'my-modeline-normal))
       ('menu1  (propertize " ☰  Menu1 " 'face 'my-modeline-normal))
       (_       (propertize " ✎  Insert " 'face 'my-modeline-insert)))))
@@ -177,10 +177,6 @@
 (when (bound-and-true-p ef-themes-post-load-hook)
   (my-modeline-update-faces))
   
-  
-  
-  
- 
 
 ;; ============================= Modeline Format ===============================
 
@@ -198,8 +194,54 @@
                   (my-modeline-position)
                   (propertize "  ")  ; Right margin
                   ))))
-                  
 
+
+
+
+
+;; Combined fix for both mode-line and header-line initialization
+(defun force-ui-elements-init ()
+  "Force proper initialization of modeline and header-line during startup."
+  (interactive)
+  
+  ;; Force update of the mode line and header line formats
+  (setq-default mode-line-format (default-value 'mode-line-format))
+  (setq-default header-line-format (default-value 'header-line-format))
+  
+  ;; Force update header-line background
+  (my/update-header-line-background)
+  
+  ;; Force update all buffers' mode lines and header lines
+  (dolist (buf (buffer-list))
+    (with-current-buffer buf
+      (setq mode-line-format (default-value 'mode-line-format))
+      (setq header-line-format (default-value 'header-line-format))
+      (force-mode-line-update)))
+  
+  ;; Force redraw of the entire display
+  (redraw-display))
+
+;; Remove any existing hooks for my/update-header-line-background
+(remove-hook 'after-init-hook #'my/update-header-line-background)
+
+;; Add our combined fix with careful timing
+(add-hook 'window-setup-hook
+          (lambda ()
+            (run-with-timer 0.8 nil #'force-ui-elements-init)))
+
+;; Enhanced ef-themes hook to ensure header-line updates
+(with-eval-after-load 'ef-themes
+  (remove-hook 'ef-themes-post-load-hook #'my/update-header-line-background)
+  (add-hook 'ef-themes-post-load-hook
+            (lambda ()
+              ;; Run update immediately
+              (my/update-header-line-background)
+              ;; Then again after a delay
+              (run-with-timer 0.2 nil #'force-ui-elements-init))))
+
+;; Give user a manual command to fix UI elements if needed
+(defalias 'fix-ui #'force-ui-elements-init)
+                  
 ;; =========================================================================== EOF =======================================================
 (provide 'my-modeline)
 ;;; my-modeline.el ends here
